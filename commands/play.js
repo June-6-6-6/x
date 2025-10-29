@@ -1,9 +1,13 @@
-async function playCommand(sock, chatId, message) {
+  
+    
     const fs = require("fs");
     const axios = require('axios');
     const yts = require('yt-search');
     const path = require('path');
     const fetch = require('node-fetch');
+
+async function playCommand(sock, chatId, message) {
+  
 
                 try {
                     // try react
@@ -19,7 +23,6 @@ async function playCommand(sock, chatId, message) {
  
 const text = message.message?.conversation || message.message?.extendedTextMessage?.text;
    const parts = text.split(' ');
-  // const command = parts[0].toLowerCase();
    const query = parts.slice(1).join(' ').trim();
 
              
@@ -52,7 +55,8 @@ const text = message.message?.conversation || message.message?.extendedTextMessa
                     if (!fs.existsSync(filePath) || fs.statSync(filePath).size === 0) throw new Error("Download failed or empty file!");
 
                     await sock.sendMessage(chatId, { text:`🎶 Playing *${apiData.result.title || video.title}* 🎧` }, { quoted: message });
-                    await sock.sendMessage(chatId, { document: { url: filePath }, mimetype: "audio/mpeg", fileName: `${(apiData.result.title || video.title).substring(0, 100)}.mp3` }, { quoted: message });
+                    await
+                    sock.sendMessage(chatId, { document: { url: filePath }, mimetype: "audio/mpeg", fileName: `${(apiData.result.title || video.title).substring(0, 100)}.mp3` }, { quoted: message });
            
                     // Cleanup
                     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
