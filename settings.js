@@ -1,6 +1,8 @@
 
 /*━━━━━━━━━━━━━━━━━━━━*/
 /**
+* supreme
+* caspar x
 */
 /*━━━━━━━━━━━━━━━━━━━━*/
 
@@ -16,7 +18,7 @@ const settings = {
   storeWriteInterval: 10000,
   description: "This is a bot for managing group commands and automating tasks.",
   version: "2.6.2",
-  updateZipUrl: "https://github.com/vinpink2/june-private-repohide/archive/refs/heads/main.zip",
+  updateZipUrl: "https://github.com/June-6-6-6/x/archive/refs/heads/main.zip",
 };
 
 module.exports = settings;
