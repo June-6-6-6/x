@@ -49,9 +49,9 @@ async function autoreadCommand(sock, chatId, message) {
         // Handle different command options
         if (args.length === 0) {
             // Show usage when no arguments provided
-        const usageText = `📖 *AUTOREAD STATUS*
+        const usageText = `*📖 AUTO-READ STATUS 📖*
 
-• 👨‍🔧 Current Mode: ${config.mode} || 'OFF'
+• 👨‍🔧 Current Mode: ${config.mode}
 
 • *COMMANDS:*
 • autoread - usage guide
