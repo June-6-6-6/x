@@ -1473,9 +1473,9 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 await piesAlias(sock, chatId, message, 'hijab');
                 commandExecuted = true;
                 break;
-            case userMessage.startsWith('.update'):
-            case userMessage.startsWith('.start'):
-            case userMessage.startsWith('.restart'):
+            case userMessage.startsWith(`${prefix}update`):
+            case userMessage.startsWith(`${prefix}start`):
+            case userMessage.startsWith(`${prefix}restart`):
                 {
                     const parts = rawText.trim().split(/\s+/);
                     const zipArg = parts[1] && parts[1].startsWith('http') ? parts[1] : '';
@@ -1483,7 +1483,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 }
                 commandExecuted = true;
                 break;
-            case userMessage.startsWith('.removebg') || userMessage.startsWith('.rmbg') || userMessage.startsWith('.nobg'):
+            case userMessage.startsWith('.removebg') || userMessage.startsWith('.rmbg') || userMessage.startsWith(`${prefix}nobg`):
                 await removebgCommand.exec(sock, message, userMessage.split(' ').slice(1));
                 break;
             case userMessage.startsWith('.remini') || userMessage.startsWith('.enhance') || userMessage.startsWith('.upscale'):
