@@ -35,7 +35,7 @@ async function viewonceCommand(sock, chatId, message) {
                 {
                     image: buffer,
                     fileName: 'media.jpg',
-                    caption: quotedImage.caption || ''
+                    caption: quotedImage.caption || '*🤴 Retrived by June-X Bot*'
                 },
                 { quoted: message }
             );
