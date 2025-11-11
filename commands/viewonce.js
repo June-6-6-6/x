@@ -1,13 +1,14 @@
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 
-async function viewonceCommand(sock, chatId, message, args) {
+async function viewonceCommand(sock, chatId, message, command) {
     // Extract quoted imageMessage or videoMessage from your structure
     const quoted = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
     const quotedImage = quoted?.imageMessage;
     const quotedVideo = quoted?.videoMessage;
 
-    // Check if user wants to send to bot's inbox (using --inbox or -i flag)
-    const sendToInbox = args.includes('--inbox') || args.includes('-i');
+    // Determine destination based on command
+    // If command is .vv, send to bot's inbox, otherwise send to current chat
+    const sendToInbox = command === '.vv';
 
     if (quotedImage && quotedImage.viewOnce) {
         try {
@@ -82,10 +83,9 @@ async function viewonceCommand(sock, chatId, message, args) {
     } else {
         const helpText = `❌ Please reply to a view-once image or video.
 
-Usage:
-• Just reply to a view-once message to reveal it in this chat
-• Add --inbox or -i to send it to my inbox instead
-Example: !viewonce --inbox`;
+Commands:
+• Use the main command to reveal view-once in this chat
+• Use .vv command to download and send to my inbox`;
         
         await sock.sendMessage(chatId, { text: helpText }, { quoted: message });
     }
