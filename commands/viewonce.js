@@ -1,10 +1,13 @@
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 
-async function viewonceCommand(sock, chatId, message) {
+async function viewonceCommand(sock, chatId, message, args) {
     // Extract quoted imageMessage or videoMessage from your structure
     const quoted = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
     const quotedImage = quoted?.imageMessage;
     const quotedVideo = quoted?.videoMessage;
+
+    // Check if user wants to send to bot's inbox (using --inbox or -i flag)
+    const sendToInbox = args.includes('--inbox') || args.includes('-i');
 
     if (quotedImage && quotedImage.viewOnce) {
         try {
@@ -13,18 +16,27 @@ async function viewonceCommand(sock, chatId, message) {
             let buffer = Buffer.from([]);
             for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
             
-            // Send to the bot's own user ID
-            const botId = sock.user.id;
-            await sock.sendMessage(botId, { 
-                image: buffer, 
-                fileName: 'media.jpg', 
-                caption: quotedImage.caption || '' 
-            });
-            
-            // Also send confirmation to the original chat
-            await sock.sendMessage(chatId, { 
-                text: '✅ View-once image has been downloaded and sent to my inbox.' 
-            }, { quoted: message });
+            if (sendToInbox) {
+                // Send to the bot's own user ID (inbox)
+                const botId = sock.user.id;
+                await sock.sendMessage(botId, { 
+                    image: buffer, 
+                    fileName: 'media.jpg', 
+                    caption: quotedImage.caption || 'Downloaded view-once image'
+                });
+                
+                // Send confirmation to original chat
+                await sock.sendMessage(chatId, { 
+                    text: '✅ View-once image has been downloaded and sent to my inbox.' 
+                }, { quoted: message });
+            } else {
+                // Send to the original chat
+                await sock.sendMessage(chatId, { 
+                    image: buffer, 
+                    fileName: 'media.jpg', 
+                    caption: quotedImage.caption || '' 
+                }, { quoted: message });
+            }
             
         } catch (error) {
             console.error('Error downloading view-once image:', error);
@@ -39,18 +51,27 @@ async function viewonceCommand(sock, chatId, message) {
             let buffer = Buffer.from([]);
             for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
             
-            // Send to the bot's own user ID
-            const botId = sock.user.id;
-            await sock.sendMessage(botId, { 
-                video: buffer, 
-                fileName: 'media.mp4', 
-                caption: quotedVideo.caption || '' 
-            });
-            
-            // Also send confirmation to the original chat
-            await sock.sendMessage(chatId, { 
-                text: '✅ View-once video has been downloaded and sent to my inbox.' 
-            }, { quoted: message });
+            if (sendToInbox) {
+                // Send to the bot's own user ID (inbox)
+                const botId = sock.user.id;
+                await sock.sendMessage(botId, { 
+                    video: buffer, 
+                    fileName: 'media.mp4', 
+                    caption: quotedVideo.caption || 'Downloaded view-once video'
+                });
+                
+                // Send confirmation to original chat
+                await sock.sendMessage(chatId, { 
+                    text: '✅ View-once video has been downloaded and sent to my inbox.' 
+                }, { quoted: message });
+            } else {
+                // Send to the original chat
+                await sock.sendMessage(chatId, { 
+                    video: buffer, 
+                    fileName: 'media.mp4', 
+                    caption: quotedVideo.caption || '' 
+                }, { quoted: message });
+            }
             
         } catch (error) {
             console.error('Error downloading view-once video:', error);
@@ -59,9 +80,14 @@ async function viewonceCommand(sock, chatId, message) {
             }, { quoted: message });
         }
     } else {
-        await sock.sendMessage(chatId, { 
-            text: '❌ Please reply to a view-once image or video.' 
-        }, { quoted: message });
+        const helpText = `❌ Please reply to a view-once image or video.
+
+Usage:
+• Just reply to a view-once message to reveal it in this chat
+• Add --inbox or -i to send it to my inbox instead
+Example: !viewonce --inbox`;
+        
+        await sock.sendMessage(chatId, { text: helpText }, { quoted: message });
     }
 }
 
