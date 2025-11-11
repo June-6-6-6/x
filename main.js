@@ -245,6 +245,27 @@ const channelInfo = {
     }
 };
 
+// fakeQuoted
+
+function createFakeContact(message) {
+    return {
+        key: {
+            participants: "0@s.whatsapp.net",
+            remoteJid: "status@broadcast",
+            fromMe: false,
+            id: "JUNE-X"
+        },
+        message: {
+            contactMessage: {
+                vcard: `BEGIN:VCARD\nVERSION:3.0\nN:Sy;Bot;;;\nFN:JUNE MD\nitem1.TEL;waid=${message.key.participant?.split('@')[0] || message.key.remoteJid.split('@')[0]}:${message.key.participant?.split('@')[0] || message.key.remoteJid.split('@')[0]}\nitem1.X-ABLabel:Ponsel\nEND:VCARD`
+            }
+        },
+        participant: "0@s.whatsapp.net"
+    };
+}
+
+const fake = createFakeContact(message);
+
 /*━━━━━━━━━━━━━━━━━━━━*/
 // Main Message Handler
 /*━━━━━━━━━━━━━━━━━━━━*/
@@ -326,12 +347,12 @@ async function handleMessages(sock, messageUpdate, printLog) {
             const time = new Date().toLocaleTimeString();
             
             console.log(chalk.bgHex('#121212').blue.bold(`
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   📥 INCOMING MESSAGE: ${time}
   👤 From: ${pushname}: ${participant}
   💬 Chat Type: ${chatType}: ${chatName}
   💭 Message: ${body || "—"}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `));   
         }
 
@@ -449,7 +470,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
             isBotAdmin = adminStatus.isBotAdmin;
 
             if (!isBotAdmin) {
-                await sock.sendMessage(chatId, { text: 'Please make the bot an admin to use admin commands.', ...channelInfo }, { quoted: message });
+                await sock.sendMessage(chatId, { text: 'Please make the bot an admin to use admin commands.', ...channelInfo }, { quoted: fake });
                 return;
             }
 
@@ -504,7 +525,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                 if (quotedMessage?.stickerMessage) {
                     await simageCommand(sock, quotedMessage, chatId);
                 } else {
-                    await sock.sendMessage(chatId, { text: 'Please reply to a sticker with the toimage command to convert it.', ...channelInfo }, { quoted: message });
+                    await sock.sendMessage(chatId, { text: 'Please reply to a sticker with the toimage command to convert it.', ...channelInfo }, { quoted: fake });
                 }
                 commandExecuted = true;
                 break;
@@ -603,7 +624,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
             case userMessage.startsWith(`${prefix}mode`):
                 // Check if sender is the owner
                 if (!message.key.fromMe && !senderIsSudo) {
-                    await sock.sendMessage(chatId, { text: 'Only bot owner can use this command!' }, { quoted: message });
+                    await sock.sendMessage(chatId, { text: 'Only bot owner can use this command!' }, { quoted: fake });
                     return;
                 }
                 // Read current data first
@@ -612,7 +633,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     data = JSON.parse(fs.readFileSync('./data/messageCount.json'));
                 } catch (error) {
                     console.error('Error reading access mode:', error);
-                    await sock.sendMessage(chatId, { text: 'Failed to read bot mode status', ...channelInfo });
+                    await sock.sendMessage(chatId, { text: 'Failed to read bot mode status'},{quoted: fake });
                     return;
                 }
 
@@ -622,7 +643,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     const currentMode = data.isPublic ? 'public' : 'private';
                     await sock.sendMessage(chatId, {
                         text: `Current bot mode: *${currentMode}*\n\nUsage: ${prefix}mode public/private\n\nExample:\n${prefix}mode public - Allow everyone to use bot\n${prefix}mode private - Restrict to owner only` 
-                    }, { quoted: message });
+                    }, { quoted: fake });
                     return;
                 }
 
@@ -630,7 +651,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     await sock.sendMessage(chatId, {
                         text: `Usage: ${prefix}mode public/private\n\nExample:\n${prefix}mode public - Allow everyone to use bot\n${prefix}mode private - Restrict to owner only`,
                         ...channelInfo
-                    }, { quoted: message });
+                    }, { quoted: fake });
                     return;
                 }
 
@@ -641,10 +662,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
                     // Save updated data
                     fs.writeFileSync('./data/messageCount.json', JSON.stringify(data, null, 2));
 
-                    await sock.sendMessage(chatId, { text: `Bot is now in *${action}* mode`, ...channelInfo });
+                    await sock.sendMessage(chatId, { text: `Bot is now in *${action}* mode`},{quoted: fake});
                 } catch (error) {
                     console.error('Error updating access mode:', error);
-                    await sock.sendMessage(chatId, { text: 'Failed to update bot access mode', ...channelInfo });
+                    await sock.sendMessage(chatId, { text: 'Failed to update bot access mode'},{quoted: fake });
                 }
                 break;
 
