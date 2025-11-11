@@ -7,13 +7,13 @@ async function attpCommand(sock, chatId, message) {
     const userMessage = message.message.conversation || message.message.extendedTextMessage?.text || '';
     const text = userMessage.split(' ').slice(1).join(' ');
 
+    const pushname = message.pushName || '𝐉ᴜɴᴇ 𝐌ᴅ'
     if (!text) {
         await sock.sendMessage(chatId, { text: 'Please provide text after the .attp command.' }, { quoted: message });
         return;
     }
 
     try {
-        const pushname = message.pushName || '𝐉ᴜɴᴇ 𝐌ᴅ'
         const mp4Buffer = await renderBlinkingVideoWithFfmpeg(text);
         const webpPath = await writeExifVid(mp4Buffer, { packname: `${pushname}` });
         const webpBuffer = fs.readFileSync(webpPath);
