@@ -550,72 +550,60 @@ async function startXeonBotInc() {
               let savedMessage = { sender: msg.key.participant || msg.key.remoteJid, text: textMessage, timestamp: msg.messageTimestamp };
               if (!global.messageBackup[chatId][messageId]) { global.messageBackup[chatId][messageId] = savedMessage; saveStoredMessages(global.messageBackup); }
         }
+// --- JUNE MD ORIGINAL HANDLER ---
+const mek = chatUpdate.messages[0];
+if (!mek?.message) return;
+mek.message = mek.message.ephemeralMessage ? mek.message.ephemeralMessage.message : mek.message;
 
-        // --- JUNE MD ORIGINAL HANDLER ---
-        const mek = chatUpdate.messages[0];
-        if (!mek.message) return;
-        mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
-        // This relies on handleStatus and handleMessages being loaded
-        if (mek.key.remoteJid === 'status@broadcast') { await handleStatus(XeonBotInc, chatUpdate); return; }
-        try { await handleMessages(XeonBotInc, chatUpdate, true) } catch(e){ log(e.message, 'red', true) }
-    });
+if (mek.key.remoteJid === 'status@broadcast') { 
+    await handleStatus(XeonBotInc, chatUpdate); 
+    return; 
+}
 
+try { 
+    await handleMessages(XeonBotInc, chatUpdate, true); 
+} catch(e) { 
+    log(e.message, 'red', true); 
+}
+});
 
-    // --- ⚠️ CONNECTION UPDATE LISTENER (Enhanced Logic with 401/408 handler)
-    XeonBotInc.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect, qr } = update;
+// --- ⚠️ CONNECTION UPDATE LISTENER (Enhanced Logic with 401/408 handler)
+XeonBotInc.ev.on('connection.update', async (update) => {
+    const { connection, lastDisconnect, qr } = update;
+    
+    if (connection === 'close') {
+        global.isBotConnected = false;
         
-        if (connection === 'close') {
-            global.isBotConnected = false; 
+        const statusCode = lastDisconnect?.error?.output?.statusCode;
+        const permanentLogout = statusCode === DisconnectReason.loggedOut || statusCode === 401;
+        
+        if (permanentLogout) {
+            log(chalk.bgRed.black(`\n\n🚨 WhatsApp Disconnected! Status Code: ${statusCode} (LOGGED OUT / INVALID SESSION).`), 'white');
+            log('🗑️ Deleting session folder and forcing a clean restart...', 'red');
             
-            const statusCode = lastDisconnect?.error?.output?.statusCode;
-            // Capture both DisconnectReason.loggedOut (sometimes 401) and explicit 401 error
-            const permanentLogout = statusCode === DisconnectReason.loggedOut || statusCode === 401;
+            clearSessionFiles();
             
-            // Log and handle permanent errors (logged out, invalid session)
-            if (permanentLogout) {
-                log(chalk.bgRed.black(`\n\n🚨 WhatsApp Disconnected! Status Code: ${statusCode} (LOGGED OUT / INVALID SESSION).`), 'white');
-                log('🗑️ Deleting session folder and forcing a clean restart...', 'red');
-                
-                // AUTOMATICALLY DELETE SESSION (using the new helper)
-                clearSessionFiles();
-                
-                log('✅ Session, login preference, and error count cleaned. Initiating full process restart in 5 seconds...', 'red');
-                await delay(5000);
-                
-                // CRITICAL FIX: Use process.exit(1) to trigger a clean restart by the Daemon
-                process.exit(1); 
-                
-            } else {
-                // NEW: Handle the 408 Timeout Logic FIRST
-                const is408Handled = await handle408Error(statusCode);
-                if (is408Handled) {
-                    // If handle408Error decides to exit, it will already have called process.exit(1)
-                    return;
-                }
-
-                // This handles all other temporary errors (Stream, Connection, Timeout, etc.)
-                log(`Connection closed due to temporary issue (Status: ${statusCode}). Attempting reconnect...`, 'yellow');
-                // Re-start the whole bot process (this handles temporary errors/reconnects)
-                startXeonBotInc(); 
+            log('✅ Session, login preference, and error count cleaned. Initiating full process restart in 5 seconds...', 'red');
+            await delay(5000);
+            
+            process.exit(1);
+        } else {
+            if (statusCode === 408) {
+                log('Connection timeout (408) detected. Restarting...', 'yellow');
+                await delay(2000);
             }
-        } else if (connection === 'open') { 
-            console.log(chalk.yellow(`💅Connected to => ` + JSON.stringify(XeonBotInc.user, null, 2)))
-            log('JUNE X connected', 'yellow');      
-            log(`Github: Vinpink2`, 'magenta');
-                        //Follow newsletter chanel
-                        try {
-            const jid2 = '120363423767541304@newsletter';
-            await XeonBotInc.newsletterFollow(jid2);
-                log('✅ followed newsletter successfully','green');
-            }catch (e) {
-                log(`❌ failed to join WhatsApp chanel: ${e}`,'red');
-                }
             
-            // Send the welcome message (which includes the 10s stability delay and error reset)
-            await sendWelcomeMessage(XeonBotInc);
+            log(`Connection closed due to temporary issue (Status: ${statusCode}). Attempting reconnect...`, 'yellow');
+            startXeonBotInc();
         }
-    });
+    } else if (connection === 'open') {
+        console.log(chalk.yellow(`💅Connected to => ` + JSON.stringify(XeonBotInc.user, null, 2)));
+        log('June md connected', 'blue');
+        log(`GITHUB: Vinpink2`, 'magenta');
+        
+        await sendWelcomeMessage(XeonBotInc);
+    }
+});
 
     XeonBotInc.ev.on('creds.update', saveCreds);
     XeonBotInc.public = true;
