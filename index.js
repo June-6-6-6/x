@@ -1062,7 +1062,6 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // Start the bot with proper error handling
-tylor().catch(err => {
-    log(`💀 Fatal error starting bot: ${err.message}`, 'red', true);
-    process.exit(1);
-});
+tylor().catch(err => log(`Fatal error starting bot: ${err.message}`, 'red', true));
+process.on('uncaughtException', (err) => log(`Uncaught Exception: ${err.message}`, 'red', true));
+process.on('unhandledRejection', (err) => log(`Unhandled Rejection: ${err.message}`, 'red', true));
