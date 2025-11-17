@@ -44,7 +44,7 @@ const pushname = message.pushName || "Unknown User";
     txt += `🔹  *Forks* : ${json.forks_count}\n`;
     txt += `🔹  *Stars* : ${json.stargazers_count}\n`;
     txt += `🔹  *Desc* : ${json.description || 'None'}\n\n`;
-    txt += `@${pushname} _Thank you for choosing June, Star<⭐> and fork<🔁> The repository_`;
+    txt += `${pushname} hey👋  _Thank you for choosing June, Star<⭐> and fork<🔁> The repository_`;
 
     // Use the local asset image
     const imgPath = path.join(__dirname, '../assets/menu2.jpg');
@@ -56,7 +56,7 @@ const pushname = message.pushName || "Unknown User";
                 caption: txt,
                 contextInfo: {
                     forwardingScore: 1,
-                    isForwarded: true,
+                    isForwarded: false,
                     forwardedNewsletterMessageInfo: {
                         newsletterJid: '@newsletter',
                         newsletterName: 'June Official',
