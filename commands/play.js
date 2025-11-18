@@ -54,18 +54,18 @@ const fake = createFakeContact(message);
                     if (!searchResult) return sock.sendMessage(chatId, { text: "😕 Couldn't find that song. Try another one!"},{ quoted: fakee });
 
                     const video = searchResult;
-                    const apiUrl = `https://api.privatezia.biz.id/api/downloader/ytmp3?url=${encodeURIComponent(video.url)}`;
+                    const apiUrl = `https://api.goodnesstechhost.xyz/download/youtube/audio?url=${encodeURIComponent(video.url)}`;
                     const response = await axios.get(apiUrl);
                     const apiData = response.data;
 
-                    if (!apiData.status || !apiData.result || !apiData.result.downloadUrl) throw new Error("API failed to fetch track!");
+                    if (!apiData.status || !apiData.result || !apiData.result.download_url) throw new Error("API failed to fetch track!");
 
                     const timestamp = Date.now();
                     const fileName = `audio_${timestamp}.mp3`;
                     const filePath = path.join(tempDir, fileName);
 
                     // Download MP3
-                    const audioResponse = await axios({ method: "get", url: apiData.result.downloadUrl, responseType: "stream", timeout: 600000 });
+                    const audioResponse = await axios({ method: "get", url: apiData.result.download_url, responseType: "stream", timeout: 600000 });
                     const writer = fs.createWriteStream(filePath);
                     audioResponse.data.pipe(writer);
                     await new Promise((resolve, reject) => { writer.on("finish", resolve); writer.on("error", reject); });
