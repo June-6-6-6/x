@@ -118,7 +118,7 @@ async function videoCommand(sock, chatId, message) {
             video: { url: videoData.download },
             mimetype: 'video/mp4',
             fileName: `${videoData.title || videoTitle || 'video'}.mp4`,
-            caption: `*${videoData.title || videoTitle || 'Video'}*`
+            caption: `*${videoData.title || videoTitle || 'Video'}\n ⬇️ DOWNLOADED BY JUNE-X*`
         }, { quoted: message });
 
         //react sucess
