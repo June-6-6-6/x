@@ -452,7 +452,7 @@ function detectHost() {
                 await XeonBotInc.groupAcceptInvite('Hd14oCh8LT1A3EheIpZycL');
                 console.log(chalk.blue(`✅ auto-joined WhatsApp group successfully`));
              } catch (e) {
-                console.log(chalk.red(`❌ failed to join WhatsApp group: ${e}`));
+                console.log(chalk.red(`🚫 Failed to join WhatsApp group: ${e}`));
                 }
 
                     
