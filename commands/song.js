@@ -35,7 +35,7 @@ function createFakeContact(message) {
         participant: "0@s.whatsapp.net"
     };
 }
-        const fake = createFakeContact(message);
+        let fake = createFakeContact(message);
         
         if (!searchQuery) {
             return await sock.sendMessage(chatId, { 
