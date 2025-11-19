@@ -67,8 +67,9 @@ function createFakeContact(message) {
         participant: "0@s.whatsapp.net"
     };
 }
+        
 
-       const fake = createFakeContact(message);
+       let fake = createFakeContact(message);
         
         if (!searchQuery) {
             await sock.sendMessage(chatId, { text: 'What video do you want to download?' }, { quoted: message });
