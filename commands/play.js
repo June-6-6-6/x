@@ -21,7 +21,7 @@ const text = message.message?.conversation || message.message?.extendedTextMessa
    const query = parts.slice(1).join(' ').trim();
 
              
-  if (!query) return await sock.sendMessage(chatId, { text: '🎵 Provide a song name!\nExample: Not Like Us'},{ quoted: message});
+  if (!query) return await sock.sendMessage(chatId, { text: '🎵 Provide a song name!\nExample:.play Not Like Us'},{ quoted: message});
 
                
                     if (query.length > 100) return await sock.sendMessage(chatId, { text: `📝 Song name too long! Max 100 chars.`},{ quoted: message});
@@ -48,8 +48,8 @@ const text = message.message?.conversation || message.message?.extendedTextMessa
                     await new Promise((resolve, reject) => { writer.on("finish", resolve); writer.on("error", reject); });
 
                     if (!fs.existsSync(filePath) || fs.statSync(filePath).size === 0) throw new Error("Download failed or empty file!");
-
-                    await sock.sendMessage(chatId, { text:`🎶 Playing *${apiData.result.title || video.title}* 🎧` }, { quoted: message });
+ 
+                    await sock.sendMessage(chatId, { text:`🔂Playing: _${apiData.result.title || video.title}_` }, { quoted: message });
                     await sock.sendMessage(chatId, { document: { url: filePath }, mimetype: "audio/mpeg", fileName: `${(apiData.result.title || video.title).substring(0, 100)}.mp3` }, { quoted: message });
 
                     // Cleanup
@@ -57,7 +57,7 @@ const text = message.message?.conversation || message.message?.extendedTextMessa
 
                 } catch (error) {
                     console.error("Play command error:", error);
-                    return await sock.sendMessage(chatId, { text: `💥 Error: ${error.message}`},{quoted: message});
+                    return await sock.sendMessage(chatId, { text: `🚫 Error: ${error.message}`},{quoted: message});
                 }
             
 }
