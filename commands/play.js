@@ -14,7 +14,11 @@ async function playCommand(sock, chatId, message) {
                     
   const tempDir = path.join(__dirname, "temp");
                     if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
-                    
+   
+  const text = message.message?.conversation || message.message?.extendedTextMessage?.text;
+   const parts = text.split(' ');
+   const query = parts.slice(1).join(' ').trim();
+                      
     // Create fake contact for enhanced replies
 function createFakeContact(message) {
     return {
@@ -31,11 +35,7 @@ function createFakeContact(message) {
         },
         participant: "0@s.whatsapp.net"
     };
-}  
- 
-  const text = message.message?.conversation || message.message?.extendedTextMessage?.text;
-   const parts = text.split(' ');
-   const query = parts.slice(1).join(' ').trim();
+} 
                     
    let fake = createFakeContact(message);
              
