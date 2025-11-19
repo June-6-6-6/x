@@ -36,7 +36,8 @@ function createFakeContact(message) {
   const text = message.message?.conversation || message.message?.extendedTextMessage?.text;
    const parts = text.split(' ');
    const query = parts.slice(1).join(' ').trim();
-   const fake = createFakeContact(message);
+                    
+   let fake = createFakeContact(message);
              
   if (!query) return await sock.sendMessage(chatId, { text: '🎵 Provide a song name!\nExample: Not Like Us'},{ quoted: fake});
 
@@ -48,7 +49,7 @@ function createFakeContact(message) {
                     if (!searchResult) return sock.sendMessage(chatId, { text: "😕 Couldn't find that song. Try another one!"},{ quoted: message });
 
                     const video = searchResult;
-                    const apiUrl = `https://api.privatezia.biz.id/api/downloader/ytmp3?url=${encodeURIComponent(video.url)}`;
+                 const apiUrl = `https://api.privatezia.biz.id/api/downloader/ytmp3?url=${encodeURIComponent(video.url)}`;
  fake           const response = await axios.get(apiUrl);
                     const apiData = response.data;
 
