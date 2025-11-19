@@ -18,6 +18,24 @@ async function songCommand(sock, chatId, message) {
         
         const text = message.message?.conversation || message.message?.extendedTextMessage?.text;
         const searchQuery = text.split(' ').slice(1).join(' ').trim();
+         // Create fake contact for enhanced replies
+function createFakeContact(message) {
+    return {
+        key: {
+            participants: "0@s.whatsapp.net",
+            remoteJid: "status@broadcast",
+            fromMe: false,
+            id: "JUNE-MD-MENU"
+        },
+        message: {
+            contactMessage: {
+                vcard: `BEGIN:VCARD\nVERSION:3.0\nN:Sy;Bot;;;\nFN:JUNE MD\nitem1.TEL;waid=${message.key.participant?.split('@')[0] || message.key.remoteJid.split('@')[0]}:${message.key.participant?.split('@')[0] || message.key.remoteJid.split('@')[0]}\nitem1.X-ABLabel:Ponsel\nEND:VCARD`
+            }
+        },
+        participant: "0@s.whatsapp.net"
+    };
+}
+        const fake = createFakeContact(message);
         
         if (!searchQuery) {
             return await sock.sendMessage(chatId, { 
@@ -45,14 +63,14 @@ async function songCommand(sock, chatId, message) {
 
         if (!apiData || !apiData.status || !apiData.result || !apiData.result.downloadUrl) {
             return await sock.sendMessage(chatId, { 
-                text: "Failed to fetch audio from the API. Please try again later."},{ quoted: message
+                text: "Failed to fetch audio from the API. Please try again later."},{ quoted: fake
             });
         }
 
         const audioUrl = apiData.result.downloadUrl;
         const title = apiData.result.title;
         
-       await sock.sendMessage(chatId, { text: `_🎶 Playing song: *${apiData.result.title}* 🎧_` }, { quoted: message });
+       await sock.sendMessage(chatId, { text: `_🎶 Playing song: *${apiData.result.title}* 🎧_` }, { quoted: fake });
         //time out
      //  const audioResponse = await axios({ method: "get", url: apiData.result.downloadUrl, responseType: "stream", timeout: 6000 });
 
@@ -63,7 +81,7 @@ async function songCommand(sock, chatId, message) {
             audio: { url: audioUrl },
             mimetype: "audio/mpeg",
             fileName: `${title}.mp3`
-        }, { quoted: message });
+        }, { quoted: fake });
         
         //successful react ✔️
        await sock.sendMessage(chatId, { react: { text: '💅', key: message.key } 
@@ -74,11 +92,11 @@ async function songCommand(sock, chatId, message) {
         console.error('Error in song2 command:', error);
         await sock.sendMessage(chatId, { 
             text: "Download failed. Please try again later."
-        });
+        }, { quoted: fake});
         
         //err react ❌
             await sock.sendMessage(chatId, {
-            react: { text: '❌', key: message.key }
+            react: { text: '🚫', key: message.key }
         });
     }
 }
