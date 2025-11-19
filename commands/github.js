@@ -14,7 +14,7 @@ async function githubCommand(sock, chatId, message) {
             participants: "0@s.whatsapp.net",
             remoteJid: "status@broadcast",
             fromMe: false,
-            id: "JUNE-MD-MENU"
+            id: "JUNE-X"
         },
         message: {
             contactMessage: {
@@ -44,7 +44,7 @@ const pushname = message.pushName || "Unknown User";
     txt += `🔹  *Forks* : ${json.forks_count}\n`;
     txt += `🔹  *Stars* : ${json.stargazers_count}\n`;
     txt += `🔹  *Desc* : ${json.description || 'None'}\n\n`;
-    txt += `${pushname} hey👋  _Thank you for choosing June, Star<⭐> and fork<🔁> The repository_`;
+    txt += `${pushname} hey☺️  _Thank you for choosing June, Fork-Star the repository_`;
 
     // Use the local asset image
     const imgPath = path.join(__dirname, '../assets/menu2.jpg');
