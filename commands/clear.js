@@ -4,7 +4,7 @@ async function clearCommand(sock, chatId) {
         const statusMsg = await sock.sendMessage(chatId, { text: 'Clearing bot messages...' });
 
         // Fetch recent messages from the chat
-        const messages = await sock.fetchMessages(chatId, 500); 
+        const messages = await sock.fetchMessages(chatId, 50); 
         // Adjust the number (500) depending on how many you want to clear
 
         for (const msg of messages) {
