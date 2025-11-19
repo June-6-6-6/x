@@ -1,156 +1,196 @@
-async function clearCommand(sock, chatId, userJid) {
+async function clearCommand(sock, chatId, isGroup = false, numberOfMessages = 50) {
     try {
-        // Send initial status message
-        const statusMessage = await sock.sendMessage(chatId, { 
-            text: '🔄 Clearing bot messages...' 
+        // Send initial notification
+        const notification = await sock.sendMessage(chatId, { 
+            text: `🗑️ Clearing ${numberOfMessages} messages...` 
         });
 
-        // Fetch recent messages from the chat
-        const messages = await sock.fetchMessagesFromWA(chatId, 100); // Get last 100 messages
+        let messagesDeleted = 0;
         
-        let botMessagesDeleted = 0;
-        let userMessagesDeleted = 0;
-        const deletionErrors = [];
-
-        // Filter and delete messages
-        for (const message of messages) {
-            try {
-                // Delete bot messages
-                if (message.key.fromMe) {
-                    await sock.sendMessage(chatId, { 
-                        delete: message.key 
-                    });
-                    botMessagesDeleted++;
-                }
-                // Delete user's messages (optional - only delete messages from the command sender)
-                else if (message.key.participant === userJid || message.key.remoteJid === userJid) {
-                    await sock.sendMessage(chatId, { 
-                        delete: message.key 
-                    });
-                    userMessagesDeleted++;
-                }
-                
-                // Small delay to avoid rate limiting
-                await new Promise(resolve => setTimeout(resolve, 100));
-            } catch (error) {
-                deletionErrors.push(error.message);
-                console.error('Error deleting single message:', error);
-            }
+        if (isGroup) {
+            // For group chats - clear bot messages and command messages
+            messagesDeleted = await clearGroupMessages(sock, chatId, numberOfMessages);
+        } else {
+            // For private chats - clear recent messages
+            messagesDeleted = await clearPrivateMessages(sock, chatId, numberOfMessages);
         }
 
-        // Update status message with results
-        let resultText = `✅ Clear operation completed!\n\n`;
-        resultText += `🤖 Bot messages deleted: ${botMessagesDeleted}\n`;
-        resultText += `👤 Your messages deleted: ${userMessagesDeleted}`;
-        
-        if (deletionErrors.length > 0) {
-            resultText += `\n\n⚠️ Some messages couldn't be deleted: ${deletionErrors.length} errors`;
-        }
-
-        // Edit the original status message with results
+        // Update notification with result
         await sock.sendMessage(chatId, { 
-            text: resultText,
-            edit: statusMessage.key 
+            text: `✅ Successfully cleared ${messagesDeleted} messages!`,
+            edit: notification.key 
         });
 
-        // Auto-delete the result message after 10 seconds
+        // Auto-delete the success message after 3 seconds
         setTimeout(async () => {
             try {
                 await sock.sendMessage(chatId, { 
-                    delete: statusMessage.key 
+                    delete: notification.key 
                 });
             } catch (error) {
-                console.error('Error auto-deleting status message:', error);
+                console.log('Failed to auto-delete notification:', error);
             }
-        }, 10000);
+        }, 3000);
 
     } catch (error) {
-        console.error('Error in clear command:', error);
-        
-        // Send error message
+        console.error('Error clearing messages:', error);
         await sock.sendMessage(chatId, { 
-            text: '❌ An error occurred while clearing messages. Please try again later.' 
+            text: '❌ An error occurred while clearing messages.' 
         });
     }
 }
 
-// Alternative version with different clearing modes
-async function clearCommandAdvanced(sock, chatId, userJid, mode = 'bot') {
-    /**
-     * Modes:
-     * - 'bot': Clear only bot messages (default)
-     * - 'user': Clear only user's messages
-     * - 'all': Clear both bot and user messages
-     */
+// Helper function for group messages
+async function clearGroupMessages(sock, chatId, limit) {
+    let deletedCount = 0;
     
     try {
-        const statusMessage = await sock.sendMessage(chatId, { 
-            text: `🔄 Clearing ${mode} messages...` 
-        });
-
-        const messages = await sock.fetchMessagesFromWA(chatId, 200);
-        let deletedCount = 0;
-        const errors = [];
-
+        // Get recent messages in the group
+        const messages = await sock.fetchMessagesFromWA(chatId, limit);
+        
         for (const message of messages) {
             try {
-                let shouldDelete = false;
-                
-                switch (mode) {
-                    case 'bot':
-                        shouldDelete = message.key.fromMe;
-                        break;
-                    case 'user':
-                        shouldDelete = (message.key.participant === userJid || message.key.remoteJid === userJid);
-                        break;
-                    case 'all':
-                        shouldDelete = message.key.fromMe || 
-                                      (message.key.participant === userJid || message.key.remoteJid === userJid);
-                        break;
-                }
-
-                if (shouldDelete) {
+                // Delete messages sent by the bot or command messages
+                if (message.key.fromMe || 
+                    (message.message?.conversation && 
+                     message.message.conversation.startsWith('!clear'))) {
+                    
                     await sock.sendMessage(chatId, { 
                         delete: message.key 
                     });
                     deletedCount++;
-                    await new Promise(resolve => setTimeout(resolve, 50));
+                    
+                    // Add small delay to avoid rate limiting
+                    await new Promise(resolve => setTimeout(resolve, 100));
                 }
-            } catch (error) {
-                errors.push(error.message);
+            } catch (msgError) {
+                console.log(`Failed to delete message: ${message.key.id}`);
+            }
+        }
+    } catch (error) {
+        console.error('Error in clearGroupMessages:', error);
+    }
+    
+    return deletedCount;
+}
+
+// Helper function for private messages
+async function clearPrivateMessages(sock, chatId, limit) {
+    let deletedCount = 0;
+    
+    try {
+        // Get recent messages in private chat
+        const messages = await sock.fetchMessagesFromWA(chatId, limit);
+        
+        for (const message of messages) {
+            try {
+                // In private chats, we can delete our own messages
+                if (message.key.fromMe) {
+                    await sock.sendMessage(chatId, { 
+                        delete: message.key 
+                    });
+                    deletedCount++;
+                    
+                    // Add small delay to avoid rate limiting
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+            } catch (msgError) {
+                console.log(`Failed to delete message: ${message.key.id}`);
+            }
+        }
+    } catch (error) {
+        console.error('Error in clearPrivateMessages:', error);
+    }
+    
+    return deletedCount;
+}
+
+// Alternative function to clear all messages (more aggressive)
+async function clearAllMessages(sock, chatId, isGroup = false) {
+    try {
+        const notification = await sock.sendMessage(chatId, { 
+            text: '🧹 Clearing all clearable messages...' 
+        });
+
+        let totalDeleted = 0;
+        const batchSize = 50;
+        let hasMoreMessages = true;
+
+        while (hasMoreMessages && totalDeleted < 1000) { // Safety limit
+            const messages = await sock.fetchMessagesFromWA(chatId, batchSize);
+            
+            if (messages.length === 0) {
+                hasMoreMessages = false;
+                break;
+            }
+
+            let batchDeleted = 0;
+            for (const message of messages) {
+                try {
+                    if (message.key.fromMe) {
+                        await sock.sendMessage(chatId, { 
+                            delete: message.key 
+                        });
+                        batchDeleted++;
+                        totalDeleted++;
+
+                        // Rate limiting
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                    }
+                } catch (error) {
+                    console.log(`Failed to delete message: ${message.key.id}`);
+                }
+            }
+
+            // If we didn't delete any messages in this batch, stop
+            if (batchDeleted === 0) {
+                hasMoreMessages = false;
             }
         }
 
-        // Send result
-        const resultMessage = await sock.sendMessage(chatId, {
-            text: `✅ Cleared ${deletedCount} ${mode} messages${errors.length > 0 ? ` (${errors.length} failed)` : ''}`
-        });
-
-        // Delete status message
         await sock.sendMessage(chatId, { 
-            delete: statusMessage.key 
+            text: `✅ Cleared ${totalDeleted} messages total!`,
+            edit: notification.key 
         });
 
-        // Auto-delete result after 8 seconds
         setTimeout(async () => {
             try {
                 await sock.sendMessage(chatId, { 
-                    delete: resultMessage.key 
+                    delete: notification.key 
                 });
             } catch (error) {
-                // Ignore auto-delete errors
+                console.log('Failed to auto-delete notification');
             }
-        }, 8000);
+        }, 3000);
 
     } catch (error) {
-        console.error('Error in clear command:', error);
+        console.error('Error in clearAllMessages:', error);
         await sock.sendMessage(chatId, { 
-            text: '❌ Failed to clear messages. Please try again.' 
+            text: '❌ Error clearing all messages.' 
         });
     }
 }
 
+// Enhanced command handler with parameters
+async function handleClearCommand(sock, chatId, message, args) {
+    const isGroup = chatId.endsWith('@g.us');
+    
+    // Parse arguments
+    if (args.includes('all')) {
+        return await clearAllMessages(sock, chatId, isGroup);
+    }
+    
+    const countMatch = args.find(arg => !isNaN(parseInt(arg)));
+    const messageCount = countMatch ? parseInt(countMatch) : 50;
+    
+    // Limit for safety
+    const safeCount = Math.min(messageCount, 200);
+    
+    return await clearCommand(sock, chatId, isGroup, safeCount);
+}
+
 module.exports = { 
     clearCommand, 
-    clearCommandAdvanced 
+    clearAllMessages, 
+    handleClearCommand 
 };
