@@ -51,7 +51,7 @@ const fake = createFakeContact(message);
 
 
                     const searchResult = await (await yts(`${query} official`)).videos[0];
-                    if (!searchResult) return sock.sendMessage(chatId, { text: "😕 Couldn't find that song. Try another one!"},{ quoted: fakee });
+                    if (!searchResult) return sock.sendMessage(chatId, { text: "🚫 Couldn't find that song. Try another one!"},{ quoted: fakee });
 
                     const video = searchResult;
                     const apiUrl = `https://api.goodnesstechhost.xyz/download/youtube/audio?url=${encodeURIComponent(video.url)}`;
@@ -72,8 +72,7 @@ const fake = createFakeContact(message);
 
                     if (!fs.existsSync(filePath) || fs.statSync(filePath).size === 0) throw new Error("Download failed or empty file!");
 
-                    await sock.sendMessage(chatId, { text:`🎶 Playing: _${apiData.result.title || video.title}_` }, { quoted: fake });
-                    
+                    await sock.sendMessage(chatId, { text:`🎶 Playing: _${apiData.result.title || video.title}_` }, { quoted: fake });                    
                     await sock.sendMessage(chatId, { document: { url: filePath }, mimetype: "audio/mpeg", fileName: `${(apiData.result.title || video.title).substring(0, 100)}.mp3` }, { quoted: fake });
 
                     // Cleanup
@@ -82,10 +81,9 @@ const fake = createFakeContact(message);
                 } catch (error) {
                     console.error("Play command error:", error);
                     return 
-                await sock.sendMessage(chatId, {
-            react: { text: '🚫', key: message.key }
-        }); 
+            
                 await sock.sendMessage(chatId, { text: `💥 Error: ${error.message}`},{quoted: fake});
+                await sock.sendMessage(chatId, { react: { text: '🚫', key: message.key } }); 
                 }
             
 }
