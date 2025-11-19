@@ -50,7 +50,25 @@ async function videoCommand(sock, chatId, message) {
     try {
         const text = message.message?.conversation || message.message?.extendedTextMessage?.text;
         const searchQuery = text.split(' ').slice(1).join(' ').trim();
-        
+        // Create fake contact for enhanced replies
+function createFakeContact(message) {
+    return {
+        key: {
+            participants: "0@s.whatsapp.net",
+            remoteJid: "status@broadcast",
+            fromMe: false,
+            id: "JUNE X"
+        },
+        message: {
+            contactMessage: {
+                vcard: `BEGIN:VCARD\nVERSION:3.0\nN:Sy;Bot;;;\nFN:JUNE MD\nitem1.TEL;waid=${message.key.participant?.split('@')[0] || message.key.remoteJid.split('@')[0]}:${message.key.participant?.split('@')[0] || message.key.remoteJid.split('@')[0]}\nitem1.X-ABLabel:Ponsel\nEND:VCARD`
+            }
+        },
+        participant: "0@s.whatsapp.net"
+    };
+}
+
+       const fake = createFakeContact(message);
         
         if (!searchQuery) {
             await sock.sendMessage(chatId, { text: 'What video do you want to download?' }, { quoted: message });
@@ -119,7 +137,7 @@ async function videoCommand(sock, chatId, message) {
             mimetype: 'video/mp4',
             fileName: `${videoData.title || videoTitle || 'video'}.mp4`,
             caption: `${videoData.title || videoTitle || 'Video'}\n\n⬇️ DOWNLOAD BY JUNE-X BOT\n\n> 📌 By Humans, For Humans!.`
-        }, { quoted: message });
+        }, { quoted: fake });
 
         //react sucess
         await sock.sendMessage(chatId, {
@@ -129,7 +147,7 @@ async function videoCommand(sock, chatId, message) {
 
     } catch (error) {
         console.error('[VIDEO] Command Error:', error?.message || error);
-        await sock.sendMessage(chatId, { text: 'Download failed: ' + (error?.message || 'Unknown error') }, { quoted: message });
+        await sock.sendMessage(chatId, { text: 'Download failed: ' + (error?.message || 'Unknown error') }, { quoted: fake });
     }
 }
 
