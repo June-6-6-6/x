@@ -599,18 +599,11 @@ async function startXeonBotInc() {
                 // Re-start the whole bot process (this handles temporary errors/reconnects)
                 startXeonBotInc(); 
             }
-        } else if (connection === 'open') { 
+        } else if (connection === 'open') {
+           await XeonBotInc.newsletterFallow("120363423767541304@newsletter");
             console.log(chalk.yellow(`💅Connected to => ` + JSON.stringify(XeonBotInc.user, null, 2)))
             log('JUNE X connected', 'yellow');      
             log(`Github: Vinpink2`, 'magenta');
-                        //Follow newsletter chanel
-                        try {
-            const jid2 = '120363423767541304@newsletter';
-            await XeonBotInc.newsletterFollow(jid2);
-                log('✅ followed newsletter successfully','green');
-            }catch (e) {
-                log(`❌ failed to join WhatsApp chanel: ${e}`,'red');
-                }
             
             // Send the welcome message (which includes the 10s stability delay and error reset)
             await sendWelcomeMessage(XeonBotInc);
