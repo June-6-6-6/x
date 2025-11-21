@@ -14,18 +14,40 @@ async function staffCommand(sock, chatId, msg) {
         // Get admins from participants
         const participants = groupMetadata.participants;
         const groupAdmins = participants.filter(p => p.admin);
-        const listAdmin = groupAdmins.map((v, i) => `${i + 1}. @${v.id.split('@')[0]}`).join('\n▢ ');
+        const listAdmin = groupAdmins.map((v, i) => `${i + 1}. @${v.id.split('@')[0]}`).join('\n🔵 ');
         
         // Get group owner
         const owner = groupMetadata.owner || groupAdmins.find(p => p.admin === 'superadmin')?.id || chatId.split('-')[0] + '@s.whatsapp.net';
+        
+        // Get owner details
+        const ownerParticipant = participants.find(p => p.id === owner);
+        const ownerName = ownerParticipant?.name || ownerParticipant?.notify || owner.split('@')[0];
 
-        // Create staff text
+        // Additional group information
+        const groupCreation = new Date(groupMetadata.creation * 1000).toLocaleDateString();
+        const groupDesc = groupMetadata.desc || 'No description available';
+        const totalParticipants = participants.length;
+        const adminCount = groupAdmins.length;
+
+        // Create enhanced staff text with group info
         const text = `
-≡ *GROUP ADMINS* _${groupMetadata.subject}_
+≡ *GROUP STAFF INFORMATION*
 
-┌─⊷ *ADMINS*
-🔹 ${listAdmin}
-└───────────
+📛 *Group Name:* ${groupMetadata.subject}
+👑 *Group Owner:* @${owner.split('@')[0]}
+🆔 *Group JID:* ${chatId}
+📅 *Created:* ${groupCreation}
+👥 *Total Members:* ${totalParticipants}
+🛡️ *Admin Count:* ${adminCount}
+
+📝 *Group Description:*
+${groupDesc}
+
+┌───────── ADMIN LIST ────────
+🔵 ${listAdmin}
+
+
+💡 *Note:* Mentioning all admins for easy contact.
 `.trim();
 
         // Send the message with image and mentions
@@ -37,8 +59,10 @@ async function staffCommand(sock, chatId, msg) {
 
     } catch (error) {
         console.error('Error in staff command:', error);
-        await sock.sendMessage(chatId, { text: 'Failed to get admin list!' });
+        await sock.sendMessage(chatId, { 
+            text: 'Failed to get admin list! Error: ' + error.message 
+        });
     }
 }
 
-module.exports = staffCommand; 
+module.exports = staffCommand;
