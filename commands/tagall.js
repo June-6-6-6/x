@@ -20,47 +20,26 @@ async function tagAllCommand(sock, chatId, senderId) {
             return;
         }
 
-        // Check if group is too large
-        if (participants.length > 1024) {
-            await sock.sendMessage(chatId, { 
-                text: `❌ Group too large! This command supports up to 1024 members, but this group has ${participants.length} members.` 
-            });
-            return;
-        }
-
-        // Get group profile picture
-        let profilePictureUrl = null;
-        try {
-            const ppUrl = await sock.profilePictureUrl(chatId, 'image');
-            profilePictureUrl = ppUrl;
-        } catch (error) {
-            console.log('Could not fetch group profile picture:', error.message);
-            // Continue without profile picture
-        }
-
         // Send initial processing message
         await sock.sendMessage(chatId, {
             text: `⏳ Processing tagall for ${participants.length} members...`
         });
 
-        // Handle different group sizes with appropriate chunking
-        if (participants.length <= 50) {
+        // Handle different group sizes with optimized chunking
+        if (participants.length <= 100) {
             // Small groups: single message
-            await sendSingleTagAllMessage(sock, chatId, participants, groupMetadata, profilePictureUrl);
-        } else if (participants.length <= 200) {
-            // Medium groups: split into chunks
-            await sendChunkedTagAllMessages(sock, chatId, participants, groupMetadata, 25);
-        } else if (participants.length <= 500) {
-            // Large groups: smaller chunks
-            await sendChunkedTagAllMessages(sock, chatId, participants, groupMetadata, 15);
+            await sendSingleTagAllMessage(sock, chatId, participants, groupMetadata);
+        } else if (participants.length <= 512) {
+            // Medium groups: split into 2 chunks
+            await sendOptimizedTagAllMessages(sock, chatId, participants, groupMetadata, 2);
         } else {
-            // Very large groups: smallest chunks
-            await sendChunkedTagAllMessages(sock, chatId, participants, groupMetadata, 10);
+            // Large groups (513+): split into 2 chunks only (as requested)
+            await sendOptimizedTagAllMessages(sock, chatId, participants, groupMetadata, 2);
         }
 
         // Send completion message
         await sock.sendMessage(chatId, {
-            text: `✅ Successfully tagged all ${participants.length} members!`
+            text: `✅ Successfully tagged all ${participants.length} members in 2 rounds!`
         });
 
     } catch (error) {
@@ -71,8 +50,8 @@ async function tagAllCommand(sock, chatId, senderId) {
     }
 }
 
-// Function to send single message for small groups (up to 50 members)
-async function sendSingleTagAllMessage(sock, chatId, participants, groupMetadata, profilePictureUrl) {
+// Function to send single message for small groups (up to 100 members)
+async function sendSingleTagAllMessage(sock, chatId, participants, groupMetadata) {
     let message = `🏷️ *TAGGING ALL MEMBERS* 🏷️\n\n`;
     message += `📛 *Group Name:* ${groupMetadata.subject}\n`;
     message += `👥 *Total Members:* ${participants.length}\n`;
@@ -88,78 +67,64 @@ async function sendSingleTagAllMessage(sock, chatId, participants, groupMetadata
         message += `${number}. @${username}${adminIndicator}\n`;
     });
 
-    const messageOptions = {
+    await sock.sendMessage(chatId, {
         text: message,
         mentions: participants.map(p => p.id)
-    };
-
-    // Add profile picture if available
-    if (profilePictureUrl) {
-        try {
-            await sock.sendMessage(chatId, {
-                image: { url: profilePictureUrl },
-                caption: message,
-                mentions: participants.map(p => p.id)
-            });
-            return;
-        } catch (imageError) {
-            console.log('Failed to send with image, sending text only:', imageError.message);
-        }
-    }
-    
-    await sock.sendMessage(chatId, messageOptions);
+    });
 }
 
-// Function to send chunked messages for larger groups
-async function sendChunkedTagAllMessages(sock, chatId, participants, groupMetadata, chunkSize) {
-    const totalChunks = Math.ceil(participants.length / chunkSize);
+// Optimized function to send messages in exactly 2 rounds for any group size
+async function sendOptimizedTagAllMessages(sock, chatId, participants, groupMetadata, rounds = 2) {
+    const totalMembers = participants.length;
+    const membersPerRound = Math.ceil(totalMembers / rounds);
     
     // Send header message
     let headerMessage = `🏷️ *TAGGING ALL MEMBERS* 🏷️\n\n`;
     headerMessage += `📛 *Group Name:* ${groupMetadata.subject}\n`;
-    headerMessage += `👥 *Total Members:* ${participants.length}\n`;
+    headerMessage += `👥 *Total Members:* ${totalMembers}\n`;
     headerMessage += `📅 *Created:* ${new Date(groupMetadata.creation * 1000).toLocaleDateString()}\n\n`;
-    headerMessage += `🔊 *Tagging ${participants.length} members in ${totalChunks} parts...*\n`;
+    headerMessage += `🔊 *Tagging ${totalMembers} members in ${rounds} rounds...*\n`;
 
     await sock.sendMessage(chatId, { text: headerMessage });
 
-    // Send members in chunks
-    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-        const startIdx = chunkIndex * chunkSize;
-        const endIdx = Math.min(startIdx + chunkSize, participants.length);
-        const chunkParticipants = participants.slice(startIdx, endIdx);
+    // Send members in specified number of rounds
+    for (let round = 0; round < rounds; round++) {
+        const startIdx = round * membersPerRound;
+        const endIdx = Math.min(startIdx + membersPerRound, totalMembers);
+        const roundParticipants = participants.slice(startIdx, endIdx);
         
-        let chunkMessage = `📋 *Part ${chunkIndex + 1}/${totalChunks}*\n`;
-        chunkMessage += `👥 Members ${startIdx + 1}-${endIdx}\n\n`;
+        let roundMessage = `🔄 *Round ${round + 1}/${rounds}*\n`;
+        roundMessage += `👥 Members ${startIdx + 1}-${endIdx} (${roundParticipants.length} members)\n\n`;
         
-        chunkParticipants.forEach((participant, indexInChunk) => {
-            const globalIndex = startIdx + indexInChunk;
-            const number = (globalIndex + 1).toString().padStart(participants.length > 99 ? 3 : 2, '0');
-            const username = participant.id.split('@')[0];
-            const adminIndicator = participant.admin ? ' 👑' : '';
-            
-            chunkMessage += `${number}. @${username}${adminIndicator}\n`;
-        });
-
-        // Add progress for very large groups
-        if (totalChunks > 10) {
-            const progress = Math.round(((chunkIndex + 1) / totalChunks) * 100);
-            chunkMessage += `\n📊 Progress: ${progress}% (${chunkIndex + 1}/${totalChunks})`;
+        // For very large groups, we'll use a more compact format
+        if (roundParticipants.length > 100) {
+            roundMessage += `📋 Tagging ${roundParticipants.length} members in this round...\n\n`;
+        } else {
+            roundParticipants.forEach((participant, indexInRound) => {
+                const globalIndex = startIdx + indexInRound;
+                const number = (globalIndex + 1).toString().padStart(totalMembers > 99 ? 3 : 2, '0');
+                const username = participant.id.split('@')[0];
+                const adminIndicator = participant.admin ? ' 👑' : '';
+                
+                roundMessage += `${number}. @${username}${adminIndicator}\n`;
+            });
         }
+
+        roundMessage += `\n📊 Progress: ${Math.round(((round + 1) / rounds) * 100)}% (${endIdx}/${totalMembers} members)`;
 
         try {
             await sock.sendMessage(chatId, {
-                text: chunkMessage,
-                mentions: chunkParticipants.map(p => p.id)
+                text: roundMessage,
+                mentions: roundParticipants.map(p => p.id)
             });
-        } catch (chunkError) {
-            console.log(`Error sending chunk ${chunkIndex + 1}:`, chunkError.message);
-            // Continue with next chunk even if one fails
+        } catch (roundError) {
+            console.log(`Error sending round ${round + 1}:`, roundError.message);
+            // Continue with next round even if one fails
         }
 
-        // Add delay between chunks to avoid rate limiting
-        if (chunkIndex < totalChunks - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+        // Add delay between rounds to avoid spamming
+        if (round < rounds - 1) {
+            await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
         }
     }
 }
