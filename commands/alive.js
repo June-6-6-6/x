@@ -27,19 +27,17 @@ async function aliveCommand(sock, chatId, message) {
         const message1 = `🤖 *BOT STATUS* 🤖
 
 ✅ *Bot is Alive and Running!*
-
 ⏰ *Uptime:* ${formattedUptime}
-
 🔄 *Version:* ${settings.version || '1.0.0'}
 📱 *Powered by:* ${settings.botName || 'WhatsApp Bot'}
 
-💡 Use */help* to see all available commands`;
+🟢 Use *menu* to see all available commands`;
 
         await sock.sendMessage(chatId, {
             text: message1,
             contextInfo: {
                 forwardingScore: 999,
-                isForwarded: true,
+                isForwarded: false,
                 forwardedNewsletterMessageInfo: {
                     newsletterJid: '@newsletter',
                     newsletterName: '',
@@ -47,16 +45,11 @@ async function aliveCommand(sock, chatId, message) {
                 }
             }
         }, { quoted: message });
+        // uptime
+await sock.sendMessage(chatId, { text: `Uptime:${formattedUptime}`},{ quoted: message});
+        
     } catch (error) {
-        console.error('Error in alive command:', error);
-        
-        // Fallback message with basic uptime
-        const uptime = Date.now() - botStartTime;
-        const formattedUptime = formatUptime(uptime);
-        
-        await sock.sendMessage(chatId, { 
-            text: `✅ Bot is alive and running!\n⏰ Uptime: ${formattedUptime}` 
-        }, { quoted: message });
+        console.error('Error in alive command:', error);        
     }
 }
 
