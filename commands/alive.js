@@ -23,10 +23,10 @@ async function aliveCommand(sock, chatId, message) {
     try {
         const uptime = Date.now() - botStartTime;
         const formattedUptime = formatUptime(uptime);
-        const imageUrl = 'https://files.catbox.moe/pr5ynj.jpg';
+        
         const message1 = `ℹ️ *BOT STATUS* 
 
-✅ *Bot is Alive and Running!*
+✅ *JUNE X is Alive and Running!*
 ⏰ *Uptime:* ${formattedUptime}
 🔄 *Version:* ${settings.version || 'undefined !'}
 📱 *Powered by:* ${settings.botName || 'WhatsApp Bot'}
@@ -34,7 +34,6 @@ async function aliveCommand(sock, chatId, message) {
 🟢 Use *menu* to see all available commands`;
 
         await sock.sendMessage(chatId, {
-            image: imageUrl,
             text: message1,
             contextInfo: {
                 forwardingScore: 999,
