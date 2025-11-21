@@ -14,29 +14,45 @@ async function muteCommand(sock, chatId, senderId, message, durationInMinutes) {
     }
 
     try {
-        // Mute the group (announcement mode: only admins can send messages)
+        // Get group metadata (to include group name)
+        const metadata = await sock.groupMetadata(chatId);
+        const groupName = metadata.subject || 'this group';
+
+        // Mute the group (announcement mode)
         await sock.groupSettingUpdate(chatId, { announce: true });
 
         if (durationInMinutes && durationInMinutes > 0) {
             const durationInMilliseconds = durationInMinutes * 60 * 1000;
 
-            await sock.sendMessage(chatId, { text: `🔇 The group has been muted for ${durationInMinutes} minutes.` }, { quoted: message });
+            await sock.sendMessage(
+                chatId,
+                { text: `🔇 ${groupName} has been muted for ${durationInMinutes} minutes.` },
+                { quoted: message }
+            );
 
             // Schedule unmute
             setTimeout(async () => {
                 try {
                     await sock.groupSettingUpdate(chatId, { announce: false });
-                    await sock.sendMessage(chatId, { text: '🔊 The group has been unmuted.' });
+                    await sock.sendMessage(chatId, { text: `🔊 ${groupName} has been unmuted.` },{ quoted: message });
                 } catch (unmuteError) {
                     console.error('Error unmuting group:', unmuteError);
                 }
             }, durationInMilliseconds);
         } else {
-            await sock.sendMessage(chatId, { text: '🔇 The group has been muted indefinitely.' }, { quoted: message });
+            await sock.sendMessage(
+                chatId,
+                { text: `🔇 ${groupName} has been muted indefinitely.` },
+                { quoted: message }
+            );
         }
     } catch (error) {
         console.error('Error muting/unmuting the group:', error);
-        await sock.sendMessage(chatId, { text: '❌ An error occurred while muting/unmuting the group. Please try again.' }, { quoted: message });
+        await sock.sendMessage(
+            chatId,
+            { text: '❌ An error occurred while muting/unmuting the group. Please try again.' },
+            { quoted: message }
+        );
     }
 }
 
