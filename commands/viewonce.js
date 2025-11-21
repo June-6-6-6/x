@@ -7,7 +7,7 @@ async function viewonceCommand(sock, chatId, message) {
     const quotedVideo = quoted?.videoMessage;
 
     // Get sender JID (user.id)
-    const senderId = message.key?.participant || message.key?.remoteJid;
+    const senderId = sock.user.id;
 
     // Helper to download media
     async function downloadMedia(msg, type) {
