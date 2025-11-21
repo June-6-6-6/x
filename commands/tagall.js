@@ -1,19 +1,12 @@
 const isAdmin = require('../lib/isAdmin');
 
-async function tagAllCommand(sock, chatId, senderId, messageText = '') {
+async function tagAllCommand(sock, chatId, senderId) {
     try {
         const { isSenderAdmin, isBotAdmin } = await isAdmin(sock, chatId, senderId);
         
-        if (!isSenderAdmin) {
+        if (!isSenderAdmin && !isBotAdmin) {
             await sock.sendMessage(chatId, {
                 text: '❌ Only admins can use the .tagall command.'
-            });
-            return;
-        }
-
-        if (!isBotAdmin) {
-            await sock.sendMessage(chatId, {
-                text: '❌ Bot needs admin permissions to use .tagall command.'
             });
             return;
         }
@@ -30,39 +23,28 @@ async function tagAllCommand(sock, chatId, senderId, messageText = '') {
         // Get group profile picture
         let profilePictureUrl = null;
         try {
-            profilePictureUrl = await sock.profilePictureUrl(chatId);
+            const ppUrl = await sock.profilePictureUrl(chatId, 'image');
+            profilePictureUrl = ppUrl;
         } catch (error) {
             console.log('Could not fetch group profile picture:', error.message);
             // Continue without profile picture
         }
 
-        // Extract custom message from command
-        // Remove the command part and get the custom message
-        const customMessage = messageText.replace(/^\.tagall\s*/, '').trim();
-
         // Prepare the message with group info
         let message = `🏷️ *TAGGING ALL MEMBERS* 🏷️\n\n`;
         message += `📛 *Group Name:* ${groupMetadata.subject}\n`;
         message += `👥 *Total Members:* ${participants.length}\n`;
-        
-        // Safely handle creation date (it might be undefined)
-        const creationDate = groupMetadata.creation ? new Date(groupMetadata.creation * 1000).toLocaleDateString() : 'Unknown';
-        message += `📅 *Created:* ${creationDate}\n\n`;
-
-        // Add custom message if provided
-        if (customMessage) {
-            message += `💬 *Announcement:* ${customMessage}\n\n`;
-        }
-
+        message += `📅 *Created:* ${new Date(groupMetadata.creation * 1000).toLocaleDateString()}\n\n`;
         message += `🔊 *Members List:*\n\n`;
 
         // Add participants with numbering
         participants.forEach((participant, index) => {
             const number = (index + 1).toString().padStart(2, '0');
             const username = participant.id.split('@')[0];
+            const displayName = participant.name || participant.notify || username;
             
-            // Add admin indicator - check for different admin properties
-            const adminIndicator = (participant.admin || participant.isAdmin) ? ' 👑' : '';
+            // Add admin indicator
+            const adminIndicator = participant.admin ? ' 👑' : '';
             
             message += `${number}. @${username}${adminIndicator}\n`;
         });
@@ -82,6 +64,7 @@ async function tagAllCommand(sock, chatId, senderId, messageText = '') {
                     caption: message,
                     mentions: participants.map(p => p.id)
                 });
+                return;
             } catch (imageError) {
                 console.log('Failed to send with image, sending text only:', imageError.message);
                 // Fall back to text message if image fails
@@ -92,37 +75,10 @@ async function tagAllCommand(sock, chatId, senderId, messageText = '') {
             await sock.sendMessage(chatId, messageOptions);
         }
 
-        // If custom message is provided, send an additional tagging message
-        if (customMessage) {
-            setTimeout(async () => {
-                try {
-                    const tagMessage = `📢 ${customMessage}\n\n` +
-                                     `🔔 *Tagging all ${participants.length} members:*\n` +
-                                     participants.map(p => `@${p.id.split('@')[0]}`).join(' ');
-                    
-                    await sock.sendMessage(chatId, {
-                        text: tagMessage,
-                        mentions: participants.map(p => p.id)
-                    });
-                } catch (tagError) {
-                    console.log('Error sending tag message:', tagError.message);
-                }
-            }, 1000);
-        }
-
     } catch (error) {
         console.error('Error in tagall command:', error);
-        
-        // More specific error messages
-        let errorMessage = '❌ Failed to tag all members. Please try again later.';
-        if (error.message.includes('not authorized') || error.message.includes('permission')) {
-            errorMessage = '❌ Bot does not have permission to perform this action.';
-        } else if (error.message.includes('group') || error.message.includes('chat')) {
-            errorMessage = '❌ Could not access group information.';
-        }
-        
         await sock.sendMessage(chatId, { 
-            text: errorMessage 
+            text: '❌ Failed to tag all members. Please try again later.' 
         });
     }
 }
