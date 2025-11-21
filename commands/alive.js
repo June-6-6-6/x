@@ -1,74 +1,62 @@
 const settings = require("../settings");
 
-function runtime(seconds) {
-    // Add input validation
-    if (typeof seconds !== 'number' && isNaN(Number(seconds))) {
-        return '0 seconds';
-    }
-    
-    seconds = Number(seconds);
-    
-    // Handle negative values
-    if (seconds < 0) {
-        seconds = 0;
-    }
+function formatUptime(uptime) {
+    const seconds = Math.floor(uptime / 1000);
+    const days = Math.floor(seconds / (24 * 60 * 60));
+    const hours = Math.floor((seconds % (24 * 60 * 60)) / (60 * 60));
+    const minutes = Math.floor((seconds % (60 * 60)) / 60);
+    const secs = seconds % 60;
 
-    const d = Math.floor(seconds / (3600 * 24));
-    const h = Math.floor((seconds % (3600 * 24)) / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-
-    // Improved formatting - only show non-zero values
     const parts = [];
-    if (d > 0) parts.push(`${d} day${d !== 1 ? 's' : ''}`);
-    if (h > 0) parts.push(`${h} hour${h !== 1 ? 's' : ''}`);
-    if (m > 0) parts.push(`${m} minute${m !== 1 ? 's' : ''}`);
-    if (s > 0 || parts.length === 0) parts.push(`${s} second${s !== 1 ? 's' : ''}`);
-    
-    return parts.join(' ');
+    if (days > 0) parts.push(`${days} day${days > 1 ? 's' : ''}`);
+    if (hours > 0) parts.push(`${hours} hour${hours > 1 ? 's' : ''}`);
+    if (minutes > 0) parts.push(`${minutes} minute${minutes > 1 ? 's' : ''}`);
+    if (secs > 0 || parts.length === 0) parts.push(`${secs} second${secs > 1 ? 's' : ''}`);
+
+    return parts.join(', ');
 }
+
+// Store bot start time
+const botStartTime = Date.now();
 
 async function aliveCommand(sock, chatId, message) {
     try {
-        // Validate required parameters
-        if (!sock || !chatId) {
-            console.error('Missing required parameters: sock or chatId');
-            return;
-        }
-
-        const uptime = runtime(process.uptime());
+        const uptime = Date.now() - botStartTime;
+        const formattedUptime = formatUptime(uptime);
         
-        // Create a more informative message
-        const messageText = `🤖 *Bot Status*\n\n` +
-                          `🟢 Online: ${uptime}\n` +
-                          `💻 Platform: ${process.platform}\n` +
-                          `📊 Node.js: ${process.version}\n` +
-                          `🔧 Memory: ${(process.memoryUsage().rss / 1024 / 1024).toFixed(2)} MB`;
+        const message1 = `🤖 *BOT STATUS* 🤖
+
+✅ *Bot is Alive and Running!*
+
+⏰ *Uptime:* ${formattedUptime}
+
+🔄 *Version:* ${settings.version || '1.0.0'}
+📱 *Powered by:* ${settings.botName || 'WhatsApp Bot'}
+
+💡 Use */help* to see all available commands`;
 
         await sock.sendMessage(chatId, {
-            text: messageText,
+            text: message1,
             contextInfo: {
                 forwardingScore: 999,
-                isForwarded: false,
+                isForwarded: true,
                 forwardedNewsletterMessageInfo: {
                     newsletterJid: '@newsletter',
-                    newsletterName: settings.botName || '𝐉ᴜɴᴇ 𝐌ᴅ', // Use setting if available
+                    newsletterName: '',
                     serverMessageId: -1
                 }
             }
         }, { quoted: message });
-
     } catch (error) {
         console.error('Error in alive command:', error);
         
-        // Enhanced error handling with retry logic
-        try {
-            await sock.sendMessage(chatId, { 
-                text: '❌ An error occurred while checking status. Please try again later.' 
-            }, { quoted: message });
-        } catch (sendError) {
-            console.error('Failed to send error message:', sendError);
-        }
+        // Fallback message with basic uptime
+        const uptime = Date.now() - botStartTime;
+        const formattedUptime = formatUptime(uptime);
+        
+        await sock.sendMessage(chatId, { 
+            text: `✅ Bot is alive and running!\n⏰ Uptime: ${formattedUptime}` 
+        }, { quoted: message });
     }
 }
 
