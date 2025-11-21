@@ -599,14 +599,13 @@ async function startXeonBotInc() {
                 // Re-start the whole bot process (this handles temporary errors/reconnects)
                 startXeonBotInc(); 
             }
-        } else if (connection === 'open') {
-           await XeonBotInc.newsletterFollow("120363423767541304@newsletter");
+        } else if (connection === 'open') {           
             console.log(chalk.yellow(`💅Connected to => ` + JSON.stringify(XeonBotInc.user, null, 2)))
-            log('JUNE X connected', 'yellow');      
-            log(`Github: Vinpink2`, 'magenta');
+            log('JUNE X Connected', 'green');      
+            log(`Github: Vinpink2`, 'green');
             
             // Send the welcome message (which includes the 10s stability delay and error reset)
-            await sendWelcomeMessage(XeonBotInc);
+     await sendWelcomeMessage(XeonBotInc);
         }
     });
 
