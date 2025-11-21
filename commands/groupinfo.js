@@ -91,12 +91,12 @@ async function groupInfoCommand(sock, chatId, msg) {
 └─ *Owner:* @${owner.split('@')[0]}
 
 ⚡ *Administrators:*
-${listAdmin}
+  ${listAdmin}
 
 📋 *Description:*
-${truncatedDesc}
+  ${truncatedDesc}
 
-${ppError ? '📷 *Note:* Using default group image' : ''}
+  ${ppError ? '📷 *Note:* Using default group image' : ''}
 `.trim();
 
         // Prepare mentions avoiding duplicates
