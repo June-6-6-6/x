@@ -23,7 +23,7 @@ async function aliveCommand(sock, chatId, message) {
     try {
         const uptime = Date.now() - botStartTime;
         const formattedUptime = formatUptime(uptime);
-        
+        const imageUrl = '';
         const message1 = `ℹ️ *BOT STATUS* 
 
 ✅ *Bot is Alive and Running!*
@@ -34,6 +34,7 @@ async function aliveCommand(sock, chatId, message) {
 🟢 Use *menu* to see all available commands`;
 
         await sock.sendMessage(chatId, {
+            image: imageUrl,
             text: message1,
             contextInfo: {
                 forwardingScore: 999,
