@@ -32,7 +32,7 @@ async function tagAllCommand(sock, chatId, senderId) {
 
         // Prepare the message with group info
         let message = `🏷️ *TAGGING ALL MEMBERS* 🏷️\n\n`;
-        message += `📛 *Group Name:* ${groupMetadata.subject}\n`;
+        message += `💳 *Group Name:* ${groupMetadata.subject}\n`;
         message += `👥 *Total Members:* ${participants.length}\n`;
         message += `📅 *Created:* ${new Date(groupMetadata.creation * 1000).toLocaleDateString()}\n\n`;
         message += `🔊 *Members List:*\n\n`;
@@ -44,7 +44,7 @@ async function tagAllCommand(sock, chatId, senderId) {
             const displayName = participant.name || participant.notify || username;
             
             // Add admin indicator
-            const adminIndicator = participant.admin ? ' 👑' : '';
+            const adminIndicator = participant.admin ? '[ADMIN👑]' : '';
             
             message += `${number}. @${username}${adminIndicator}\n`;
         });
