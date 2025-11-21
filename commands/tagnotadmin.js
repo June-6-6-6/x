@@ -23,12 +23,35 @@ async function tagNotAdminCommand(sock, chatId, senderId, message) {
             return;
         }
 
-        let text = '🔊 *Hello Everyone:*\n\n';
+        // Get group profile picture
+        let profilePicUrl;
+        try {
+            profilePicUrl = await sock.profilePictureUrl(chatId, 'image');
+        } catch (error) {
+            profilePicUrl = null; // No profile picture set
+        }
+
+        let text = `🏷️ *Tagging Non-Admins in ${groupMetadata.subject}*\n\n`;
+        text += `📊 *Total Non-Admins:* ${nonAdmins.length}\n\n`;
+        text += '🔊 *Hello Everyone:*\n\n';
+        
         nonAdmins.forEach(jid => {
             text += `@${jid.split('@')[0]}\n`;
         });
 
-        await sock.sendMessage(chatId, { text, mentions: nonAdmins }, { quoted: message });
+        // Send message with group info and profile picture if available
+        if (profilePicUrl) {
+            await sock.sendMessage(chatId, {
+                image: { url: profilePicUrl },
+                caption: text,
+                mentions: nonAdmins
+            }, { quoted: message });
+        } else {
+            await sock.sendMessage(chatId, { 
+                text, 
+                mentions: nonAdmins 
+            }, { quoted: message });
+        }
     } catch (error) {
         console.error('Error in tagnotadmin command:', error);
         await sock.sendMessage(chatId, { text: 'Failed to tag non-admin members.' }, { quoted: message });
@@ -36,5 +59,3 @@ async function tagNotAdminCommand(sock, chatId, senderId, message) {
 }
 
 module.exports = tagNotAdminCommand;
-
-
