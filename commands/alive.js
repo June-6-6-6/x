@@ -46,7 +46,7 @@ async function aliveCommand(sock, chatId, message) {
             }
         }, { quoted: message });
         // uptime
-await sock.sendMessage(chatId, { text: `Uptime: *🔸 ${formattedUptime}*`},{ quoted: message});
+await sock.sendMessage(chatId, { text: `Uptime: *${formattedUptime}*`},{ quoted: message});
         
     } catch (error) {
         console.error('Error in alive command:', error);        
