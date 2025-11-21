@@ -36,7 +36,7 @@ async function facebookCommand(sock, chatId, message) {
 
         // Send loading reaction
         await sock.sendMessage(chatId, {
-            react: { text: '🔄', key: message.key }
+            react: { text: '⬇️', key: message.key }
         });
 
         // Improved URL resolution
@@ -234,7 +234,7 @@ async function facebookCommand(sock, chatId, message) {
         // Try URL method first
         try {
             console.log('🚀 Attempting URL method...');
-            const caption = `JUNE X BOT\n\n📝 Title: ${title}\n🔧 Source: ${apiName}\n> 📌By Humans, For Humans !`;
+            const caption = `📌 *BY JUNE-X BOT*\n\n📝 Title: ${title}\n🔧 Source: ${apiName}\n> 📌By Humans, For Humans !`;
             
             await sock.sendMessage(chatId, {
                 video: { url: fbvid },
@@ -310,7 +310,7 @@ async function facebookCommand(sock, chatId, message) {
                 console.log(`✅ Download completed: ${(stats.size / (1024 * 1024)).toFixed(2)} MB`);
 
                 // Send the video
-                const caption = `JUNE X BOT\n\n📝 Title: ${title}\n🔧 Source: ${apiName}\n> 📌By Humans, For Humans`;
+                const caption = `📌 *BY JUNE-X BOT*\n\n📝 Title: ${title}\n🔧 Source: ${apiName}\n> 📌By Humans, For Humans`;
                 
                 await sock.sendMessage(chatId, {
                     video: fs.readFileSync(tempFile),
