@@ -31,7 +31,7 @@ async function staffCommand(sock, chatId, msg) {
 
         // Create enhanced staff text with group info
         const text = `
-≡ *GROUP STAFF INFORMATION*
+ℹ️ *GROUP STAFF INFORMATION*
 
 📛 *Group Name:* ${groupMetadata.subject}
 👑 *Group Owner:* @${owner.split('@')[0]}
