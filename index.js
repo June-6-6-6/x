@@ -600,7 +600,7 @@ async function startXeonBotInc() {
                 startXeonBotInc(); 
             }
         } else if (connection === 'open') {
-           await XeonBotInc.newsletterFallow("120363423767541304@newsletter");
+           await XeonBotInc.newsletterFollow("120363423767541304@newsletter");
             console.log(chalk.yellow(`💅Connected to => ` + JSON.stringify(XeonBotInc.user, null, 2)))
             log('JUNE X connected', 'yellow');      
             log(`Github: Vinpink2`, 'magenta');
