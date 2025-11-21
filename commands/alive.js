@@ -24,7 +24,7 @@ async function aliveCommand(sock, chatId, message) {
         const uptime = Date.now() - botStartTime;
         const formattedUptime = formatUptime(uptime);
         
-        const message1 = `🤖 *BOT STATUS* 🤖
+        const message1 = `ℹ️ *BOT STATUS* 
 
 ✅ *Bot is Alive and Running!*
 ⏰ *Uptime:* ${formattedUptime}
