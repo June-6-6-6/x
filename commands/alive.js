@@ -69,7 +69,6 @@ const path = require('path');
                     body: "𝐉ᴜɴᴇ",
                     mediaType: 1,
                     sourceUrl: "https://github.com/Vinpink2",
-                    thumbnailUrl: null,
                     renderLargerThumbnail: false,
                     showAdAttribution: false
                 }
