@@ -33,18 +33,21 @@ function getOwnerName() {
 }
 
 /**
- * Set new owner name
+ * Set new owner name with case sensitivity
  * @param {string} newOwnerName - The new owner name to set
  * @returns {boolean} Success status
  */
 function setOwnerName(newOwnerName) {
     try {
-        // Validate owner name
-        if (!newOwnerName || newOwnerName.length > 20) {
+        // Validate owner name - allow mixed case
+        if (!newOwnerName || typeof newOwnerName !== 'string' || newOwnerName.trim().length === 0 || newOwnerName.length > 20) {
             return false;
         }
         
-        const data = { ownerName: newOwnerName };
+        // Trim and preserve original case
+        const trimmedName = newOwnerName.trim();
+        
+        const data = { ownerName: trimmedName };
         fs.writeFileSync(OWNER_FILE, JSON.stringify(data, null, 2));
         return true;
     } catch (error) {
@@ -68,11 +71,50 @@ function resetOwnerName() {
     }
 }
 
-async function handleSetOwnerCommand(sock, chatId, senderId, message, userMessage, currentPrefix) {
-    const args = userMessage.split(' ').slice(1);
-   const newOwnerName = args.join(' ');
+/**
+ * Format owner name display with proper case handling
+ * @param {string} name - The owner name to format
+ * @returns {string} Formatted name
+ */
+function formatOwnerName(name) {
+    if (!name || name === DEFAULT_OWNER_NAME) {
+        return name;
+    }
     
-    // Create fake contact for enhanced replies
+    // Return the name as stored (preserving original case)
+    return name;
+}
+
+/**
+ * Validate owner name with case sensitivity
+ * @param {string} name - The name to validate
+ * @returns {Object} Validation result { isValid: boolean, message: string }
+ */
+function validateOwnerName(name) {
+    if (!name || typeof name !== 'string') {
+        return { isValid: false, message: 'Owner name cannot be empty!' };
+    }
+    
+    const trimmed = name.trim();
+    
+    if (trimmed.length === 0) {
+        return { isValid: false, message: 'Owner name cannot be empty!' };
+    }
+    
+    if (trimmed.length > 20) {
+        return { isValid: false, message: 'Owner name must be 1-20 characters long!' };
+    }
+    
+    // Check for invalid characters (optional - you can customize this)
+    const invalidChars = /[<>@#\$%\^\*\\\/]/;
+    if (invalidChars.test(trimmed)) {
+        return { isValid: false, message: 'Owner name contains invalid characters!' };
+    }
+    
+    return { isValid: true, message: 'Valid owner name' };
+}
+
+// Create fake contact for enhanced replies
 function createFakeContact(message) {
     return {
         key: {
@@ -89,8 +131,13 @@ function createFakeContact(message) {
         participant: "0@s.whatsapp.net"
     };
 }
+
+async function handleSetOwnerCommand(sock, chatId, senderId, message, userMessage, currentPrefix) {
+    const args = userMessage.split(' ').slice(1);
+    const newOwnerName = args.join(' ');
     
-  const fake = createFakeContact(message);
+    const fake = createFakeContact(message);
+    
     // Only bot owner can change owner name
     if (!message.key.fromMe) {
         await sock.sendMessage(chatId, { 
@@ -109,10 +156,12 @@ function createFakeContact(message) {
     }
 
     if (!newOwnerName) {
-        // Show current owner name
+        // Show current owner name with preserved case
         const current = getOwnerName();
+        const formattedCurrent = formatOwnerName(current);
+        
         await sock.sendMessage(chatId, { 
-            text: `👑 Current Owner Name: *${current}*\n\nUsage: ${currentPrefix}setowner <new_name>\nExample: ${currentPrefix}setowner Supreme\n\nTo reset: ${currentPrefix}setowner reset`,
+            text: `👑 Current Owner Name: *${formattedCurrent}*\n\nUsage: ${currentPrefix}setowner <new_name>\nExample: ${currentPrefix}setowner Supreme\nExample: ${currentPrefix}setowner john doe\nExample: ${currentPrefix}setowner JANE Doe\n\nTo reset: ${currentPrefix}setowner reset\n\n📝 Note: Owner name preserves letter case (uppercase/lowercase)`,
             contextInfo: {
                 forwardingScore: 1,
                 isForwarded: false,
@@ -155,15 +204,16 @@ function createFakeContact(message) {
                         serverMessageId: -1
                     }
                 }
-            },{ quoted: fake});
+            }, { quoted: fake });
         }
         return;
     }
 
-    // Set new owner name
-    if (newOwnerName.length > 20) {
+    // Validate the new owner name
+    const validation = validateOwnerName(newOwnerName);
+    if (!validation.isValid) {
         await sock.sendMessage(chatId, { 
-            text: '❌ Owner name must be 1-20 characters long!',
+            text: `❌ ${validation.message}`,
             contextInfo: {
                 forwardingScore: 1,
                 isForwarded: true,
@@ -177,13 +227,16 @@ function createFakeContact(message) {
         return;
     }
 
+    // Set new owner name with preserved case
     const success = setOwnerName(newOwnerName);
     if (success) {
+        const formattedNewName = formatOwnerName(newOwnerName);
         await sock.sendMessage(chatId, { 
-            text: `✅ Owner name successfully set to: *${newOwnerName}*`,
+            text: `✅ Owner name successfully set to: *${formattedNewName}*`,
             contextInfo: {
                 forwardingScore: 1,
-                isForwarded: false,               forwardedNewsletterMessageInfo: {
+                isForwarded: false,
+                forwardedNewsletterMessageInfo: {
                     newsletterJid: '@',
                     newsletterName: '',
                     serverMessageId: -1
@@ -195,7 +248,8 @@ function createFakeContact(message) {
             text: '❌ Failed to set owner name!',
             contextInfo: {
                 forwardingScore: 1,
-                isForwarded: false,             forwardedNewsletterMessageInfo: {
+                isForwarded: false,
+                forwardedNewsletterMessageInfo: {
                     newsletterJid: '@',
                     newsletterName: '',
                     serverMessageId: -1
@@ -205,9 +259,48 @@ function createFakeContact(message) {
     }
 }
 
+/**
+ * Get owner info with formatted display
+ * @returns {Object} Owner information
+ */
+function getOwnerInfo() {
+    const ownerName = getOwnerName();
+    return {
+        name: ownerName,
+        formattedName: formatOwnerName(ownerName),
+        isDefault: ownerName === DEFAULT_OWNER_NAME
+    };
+}
+
+/**
+ * Check if a given name matches the current owner name (case-sensitive)
+ * @param {string} nameToCheck - The name to check
+ * @returns {boolean} True if matches (case-sensitive)
+ */
+function isOwnerNameMatch(nameToCheck) {
+    const currentOwner = getOwnerName();
+    return currentOwner === nameToCheck;
+}
+
+/**
+ * Check if a given name matches the current owner name (case-insensitive)
+ * @param {string} nameToCheck - The name to check
+ * @returns {boolean} True if matches (case-insensitive)
+ */
+function isOwnerNameMatchCaseInsensitive(nameToCheck) {
+    const currentOwner = getOwnerName();
+    return currentOwner.toLowerCase() === nameToCheck.toLowerCase();
+}
+
 module.exports = {
     getOwnerName,
     setOwnerName,
     resetOwnerName,
-    handleSetOwnerCommand
+    handleSetOwnerCommand,
+    formatOwnerName,
+    validateOwnerName,
+    getOwnerInfo,
+    isOwnerNameMatch,
+    isOwnerNameMatchCaseInsensitive,
+    DEFAULT_OWNER_NAME
 };
