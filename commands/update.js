@@ -50,7 +50,7 @@ function downloadFile(url, dest, visited = new Set()) {
             const client = useHttps ? https : require('http');
             const req = client.get(url, {
                 headers: {
-                    'User-Agent': 'KnightBot-Updater/1.0',
+                    'User-Agent': 'JUNE-X-Updater/1.0',
                     'Accept': '*/*'
                 }
             }, res => {
@@ -246,7 +246,7 @@ async function updateCommand(sock, chatId, message, zipOverride) {
                     `✅ Updated from ${oldRev.substring(0, 7)} to ${newRev.substring(0, 7)}`;
                 
                 await sock.sendMessage(chatId, { 
-                    text: `${summary}\n📦 Installing dependencies...`,
+                    text: `${summary}\n📦 Installing *JUNE-X* idependencies...`,
                     edit: statusMessage.key
                 });
             }
@@ -256,7 +256,7 @@ async function updateCommand(sock, chatId, message, zipOverride) {
             // Update status message for ZIP update
             if (statusMessage && statusMessage.key) {
                 await sock.sendMessage(chatId, { 
-                    text: '📥 Downloading update, please wait ...',
+                    text: '⬇️ Downloading update, please wait ...',
                     edit: statusMessage.key
                 });
             }
@@ -266,7 +266,7 @@ async function updateCommand(sock, chatId, message, zipOverride) {
             // Update status message after ZIP extraction
             if (statusMessage && statusMessage.key) {
                 await sock.sendMessage(chatId, { 
-                    text: `✅ Extracted ${copiedFiles.length} files\n📦 Installing dependencies...`,
+                    text: `🧯 Extracted ${copiedFiles.length} files\nℹ️ Installing *JUNE-X* dependencies...`,
                     edit: statusMessage.key
                 });
             }
