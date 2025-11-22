@@ -27,15 +27,17 @@ async function promoteCommand(sock, chatId, mentionedJids, message) {
         // Get usernames for promoted users
         const promotedUsers = userToPromote.map(jid => `@${jid.split('@')[0]}`).join(', ');
         
-        // Get promoter info
-        const promoter = `@${sock.user.id.split('@')[0]}`;
+        // Get promoter info - fix: ensure proper JID format for mention
+        const promoterJid = sock.user.id;
+        const promoterMention = `@${promoterJid.split('@')[0]}`;
 
         // Simple notification - only bot sends this
-        const promotionMessage = `🎊 Promoted: ${promotedUsers}\n👤 Promoter: ${promoter}`;
+        const promotionMessage = `🎊 Promoted: ${promotedUsers}\n👤 By: ${promoterMention}`;
         
+        // Fix: Include promoter JID in mentions array
         await sock.sendMessage(chatId, { 
             text: promotionMessage,
-            mentions: [...userToPromote, sock.user.id]
+            mentions: [...userToPromote, promoterJid]
         });
     } catch (error) {
         console.error('Error in promote command:', error);
@@ -60,24 +62,25 @@ async function handlePromotionEvent(sock, groupId, participants, author) {
             return; // Silent return - no notification for other admins
         }
 
-        // Get promoted users
+        // Get promoted users and their JIDs for mentions
         const promotedUsers = participants.map(jid => {
             const jidString = typeof jid === 'string' ? jid : (jid.id || jid.toString());
             return `@${jidString.split('@')[0]}`;
         }).join(', ');
 
-        const promoter = `@${botJid.split('@')[0]}`;
+        const promoterMention = `@${botJid.split('@')[0]}`;
 
         // Simple notification - only for bot actions
-        const promotionMessage = `🤖 Bot Promotion\n🎊 Promoted: ${promotedUsers}\n👤 Promoter: ${promoter}`;
+        const promotionMessage = `🤖 Bot Promotion\n🎊 Promoted: ${promotedUsers}\n👤 By: ${promoterMention}`;
         
+        // Fix: Convert all participant JIDs to string format and include bot JID
         const mentionList = participants.map(jid => 
             typeof jid === 'string' ? jid : (jid.id || jid.toString())
         );
 
         await sock.sendMessage(groupId, {
             text: promotionMessage,
-            mentions: [...mentionList, botJid]
+            mentions: [...mentionList, botJid] // Include bot JID for mention
         });
     } catch (error) {
         console.error('Error handling promotion event:', error);
