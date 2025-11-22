@@ -1,6 +1,6 @@
 const { setAntitag, getAntitag, removeAntitag } = require('../lib/index');
 const isAdmin = require('../lib/isAdmin');
-
+const getPrefix = require('./setprefix');
 // Store for counting detected tagall messages
 const antitagStats = new Map();
 
@@ -11,7 +11,7 @@ async function handleAntitagCommand(sock, chatId, userMessage, senderId, isSende
             return;
         }
 
-        const prefix = '.';
+        const prefix = getPrefix();
         const args = userMessage.slice(9).toLowerCase().trim().split(' ');
         const action = args[0];
 
