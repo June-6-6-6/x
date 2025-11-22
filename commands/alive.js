@@ -41,7 +41,7 @@ const path = require('path');
     const imgBuffer2 = fs.readFileSync(imgPath);
 
         await sock.sendMessage(chatId, {
-            image: imageBuffer2,
+            image: imgBuffer2,
             caption: message1,
             contextInfo: {
                 externalAdReply: {
