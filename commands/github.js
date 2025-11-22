@@ -30,7 +30,9 @@ async function githubCommand(sock, chatId, message) {
   const fkontak = createFakeContact(message);
     
 const pushname = message.pushName || "Unknown User";
-    const res = await fetch('https://api.github.com/repos/vinpink2/June-md');
+const userId = message.key.participant?.split('@')[0] || message.key.remoteJid.split('@')[0];
+    
+const res = await fetch('https://api.github.com/repos/vinpink2/June-md');
     if (!res.ok) throw new Error('Error fetching repository data');
     const json = await res.json();
 
@@ -44,37 +46,35 @@ const pushname = message.pushName || "Unknown User";
     txt += `🔹  *Forks* : ${json.forks_count}\n`;
     txt += `🔹  *Stars* : ${json.stargazers_count}\n`;
     txt += `🔹  *Desc* : ${json.description || 'None'}\n\n`;
-    txt += `${pushname} hey☺️  _Thank you for choosing June, Fork-Star the repository_`;
+    txt += `@${userId} hey☺️  _Thank you for choosing June, Fork-Star the repository_`;
 
     // Use the local asset image
     const imgPath = path.join(__dirname, '../assets/menu2.jpg');
     const imgBuffer = fs.readFileSync(imgPath);
 
-    /*await sock.sendMessage(chatId, { image: imgBuffer, caption: txt }, { quoted: message });*/
-               await sock.sendMessage(chatId, {
-                image: imgBuffer,
-                caption: txt,
-                contextInfo: {
-                    forwardingScore: 1,
-                    isForwarded: false,
-                    forwardedNewsletterMessageInfo: {
-                        newsletterJid: '@newsletter',
-                        newsletterName: 'June Official',
-                        serverMessageId: -1
-                    }
-                }
-            },{ quoted: fkontak });   
-      
-      
+    await sock.sendMessage(chatId, {
+        image: imgBuffer,
+        caption: txt,
+        mentions: [userId + '@s.whatsapp.net'],
+        contextInfo: {
+            forwardingScore: 1,
+            isForwarded: false,
+            forwardedNewsletterMessageInfo: {
+                newsletterJid: '@newsletter',
+                newsletterName: 'June Official',
+                serverMessageId: -1
+            }
+        }
+    }, { quoted: fkontak });   
       
 //arect sucess💉
     await sock.sendMessage(chatId, {
-            react: { text: '✔️', key: message.key }
-        });
+        react: { text: '✔️', key: message.key }
+    });
     
   } catch (error) {
     await sock.sendMessage(chatId, { text: '❌ Error fetching repository information.' }, { quoted: message });
   }
 }
 
-module.exports = githubCommand; 
+module.exports = githubCommand;
