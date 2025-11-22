@@ -1,4 +1,7 @@
 const settings = require("../settings");
+const fs = require('fs');
+const path = require('path');
+
 
 function formatUptime(uptime) {
     const seconds = Math.floor(uptime / 1000);
