@@ -232,8 +232,8 @@ async function updateCommand(sock, chatId, message, zipOverride) {
             // Update status message
             if (statusMessage && statusMessage.key) {
                 await sock.sendMessage(chatId, { 
-                    text: '🔄 Updating via Git...',
-                    edit: statusMessage.key
+                    text: '🔄 Updating JUNE-X via Github...',
+                    //edit: statusMessage.key
                 });
             }
             
@@ -256,7 +256,7 @@ async function updateCommand(sock, chatId, message, zipOverride) {
             // Update status message for ZIP update
             if (statusMessage && statusMessage.key) {
                 await sock.sendMessage(chatId, { 
-                    text: '📥 Downloading update via ZIP...',
+                    text: '📥 Downloading update, please wait ...',
                     edit: statusMessage.key
                 });
             }
