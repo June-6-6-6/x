@@ -34,17 +34,20 @@ async function aliveCommand(sock, chatId, message) {
 🟢 Use *menu* to see all available commands`;
 
         await sock.sendMessage(chatId, {
-            text: message1,
+            image: { url: },
+            caption: message1,
             contextInfo: {
-                forwardingScore: 999,
-                isForwarded: false,
-                forwardedNewsletterMessageInfo: {
-                    newsletterJid: '@newsletter',
-                    newsletterName: '',
-                    serverMessageId: -1
+                externalAdReply: {
+                    title: 'JUNE-X',
+                    body: "𝐉ᴜɴᴇ",
+                    mediaType: 1,
+                    sourceUrl: "https://github.com/Vinpink2",
+                    thumbnailUrl: "https://files.catbox.moe/a0gfje.jpg",
+                    renderLargerThumbnail: false,
+                    showAdAttribution: false
                 }
             }
-        }, { quoted: message });
+        },{ quoted: message});  
         // uptime
 await sock.sendMessage(chatId, { text: `🔸 *${formattedUptime}*`},{ quoted: message});
         
