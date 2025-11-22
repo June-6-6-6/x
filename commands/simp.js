@@ -37,11 +37,10 @@ async function simpCommand(sock, chatId, quotedMsg, mentionedJid, sender) {
                 forwardingScore: 1,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363161513685998@newsletter',
+                    newsletterJid: 'ewsletter',
                     newsletterName: 'KnightBot MD',
                     serverMessageId: -1
-                }
-            }
+ }
         });
 
     } catch (error) {
@@ -52,7 +51,7 @@ async function simpCommand(sock, chatId, quotedMsg, mentionedJid, sender) {
                 forwardingScore: 1,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363161513685998@newsletter',
+                    newsletterJid:' newsletter',
                     newsletterName: 'KnightBot MD',
                     serverMessageId: -1
                 }
