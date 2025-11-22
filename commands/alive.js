@@ -1,7 +1,4 @@
 const settings = require("../settings");
-const fs = require('fs');
-const path = require('path');
-
 
 function formatUptime(uptime) {
     const seconds = Math.floor(uptime / 1000);
@@ -36,6 +33,10 @@ async function aliveCommand(sock, chatId, message) {
 
 🟢 Use *menu* to see all available commands`;
             // Use the local asset image
+        
+const fs = require('fs');
+const path = require('path');
+        
     const imgPath = path.join(__dirname, '../assets/menu1.jpg');
     const imgBuffer2 = fs.readFileSync(imgPath);
 
