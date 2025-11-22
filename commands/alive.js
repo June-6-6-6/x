@@ -32,7 +32,27 @@ async function aliveCommand(sock, chatId, message) {
 📱 *Powered by:* ${settings.botName || 'WhatsApp Bot'}
 
 🟢 Use *menu* to see all available commands`;
-            // Use the local asset image
+
+        // Create fake contact for enhanced replies
+function createFakeContact(message) {
+    return {
+        key: {
+            participants: "0@s.whatsapp.net",
+            remoteJid: "status@broadcast",
+            fromMe: false,
+            id: "JUNE-X"
+        },
+        message: {
+            contactMessage: {
+                vcard: `BEGIN:VCARD\nVERSION:3.0\nN:Sy;Bot;;;\nFN:JUNE X\nitem1.TEL;waid=${message.key.participant?.split('@')[0] || message.key.remoteJid.split('@')[0]}:${message.key.participant?.split('@')[0] || message.key.remoteJid.split('@')[0]}\nitem1.X-ABLabel:Ponsel\nEND:VCARD`
+            }
+        },
+        participant: "0@s.whatsapp.net"
+    };
+}
+
+ const fake = createFakeContact(message);
+// Use the local asset image
         
 const fs = require('fs');
 const path = require('path');
@@ -54,9 +74,9 @@ const path = require('path');
                     showAdAttribution: false
                 }
             }
-        },{ quoted: message});  
+        },{ quoted: fake });  
         // uptime
-await sock.sendMessage(chatId, { text: `🔸 *${formattedUptime}*`},{ quoted: message});
+await sock.sendMessage(chatId, { text: `🔸 *${formattedUptime}*`},{ quoted: fake});
         
     } catch (error) {
         console.error('Error in alive command:', error);        
