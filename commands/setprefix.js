@@ -176,7 +176,7 @@ async function handleSetPrefixCommand(sock, chatId, senderId, message, userMessa
         const success = setPrefix('');
         if (success) {
             await sock.sendMessage(chatId, { 
-                text: '👑 Bot is now running in *PREFIXLESS MODE*! All commands can be used without any prefix.\n\n⚠️ *Note:* In prefixless MODE, NOW use commands directly without  PREFIX',
+                text: '👑 Bot is now running in *PREFIXLESS MODE*!',
                 contextInfo: {
                     forwardingScore: 1,
                     isForwarded: false,
