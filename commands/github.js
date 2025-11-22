@@ -78,4 +78,3 @@ const pushname = message.pushName || "Unknown User";
 }
 
 module.exports = githubCommand; 
- enhance the pushName to mention the user(tag) in private chats and groups
