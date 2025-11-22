@@ -94,72 +94,85 @@ async function handleAntitagCommand(sock, chatId, userMessage, senderId, isSende
 
 async function handleTagDetection(sock, chatId, message, senderId) {
     try {
+        // Early return if not a group
+        if (!chatId.endsWith('@g.us')) return;
+
         const antitagSetting = await getAntitag(chatId, 'on');
         if (!antitagSetting || !antitagSetting.enabled) return;
 
+        // Get group metadata once and cache if needed
+        let groupMetadata;
+        let totalParticipants = 0;
+        
         // Get mentioned JIDs from contextInfo (proper mentions)
         const mentionedJids = message.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
         
-        // Extract text from all possible message types
-        const messageText = (
-            message.message?.conversation ||
-            message.message?.extendedTextMessage?.text ||
-            message.message?.imageMessage?.caption ||
-            message.message?.videoMessage?.caption ||
-            message.message?.documentMessage?.caption ||
-            ''
-        );
+        // Extract text from all possible message types - optimized extraction
+        let messageText = '';
+        const msg = message.message;
+        if (msg.conversation) {
+            messageText = msg.conversation;
+        } else if (msg.extendedTextMessage?.text) {
+            messageText = msg.extendedTextMessage.text;
+        } else if (msg.imageMessage?.caption) {
+            messageText = msg.imageMessage.caption;
+        } else if (msg.videoMessage?.caption) {
+            messageText = msg.videoMessage.caption;
+        } else if (msg.documentMessage?.caption) {
+            messageText = msg.documentMessage.caption;
+        }
 
-        // Enhanced mention detection
-        const textMentions = messageText.match(/@[\d+\s\-()~.]+/g) || [];
-        const numericMentions = messageText.match(/@\d{10,}/g) || [];
+        // Early return if no text content
+        if (!messageText && mentionedJids.length === 0) return;
+
+        // FAST mention detection - optimized regex
+        const textMentions = messageText.match(/@[\d\s\-().]+/g) || [];
+        const numericMentions = messageText.match(/@\d{8,}/g) || []; // Reduced from 10 to 8 for faster detection
         
-        // Count unique mentions properly
+        // Count unique mentions - optimized logic
         const uniqueMentions = new Set();
         
         // Add proper WhatsApp mentions
-        mentionedJids.forEach(jid => {
+        for (const jid of mentionedJids) {
             if (jid && jid.includes('@s.whatsapp.net')) {
                 uniqueMentions.add(jid.split('@')[0]);
             }
-        });
+        }
         
-        // Add text mentions
-        textMentions.forEach(mention => {
+        // Add text mentions - optimized processing
+        for (const mention of textMentions) {
             const cleanMention = mention.replace(/@/g, '').replace(/[^\d]/g, '');
-            if (cleanMention.length >= 10) {
+            if (cleanMention.length >= 8) { // Reduced threshold for faster detection
                 uniqueMentions.add(cleanMention);
             }
-        });
+        }
         
         // Add numeric mentions
-        numericMentions.forEach(mention => {
+        for (const mention of numericMentions) {
             const numMatch = mention.match(/@(\d+)/);
             if (numMatch) uniqueMentions.add(numMatch[1]);
-        });
+        }
 
         const totalUniqueMentions = uniqueMentions.size;
 
-        // Enhanced detection logic
+        // FAST threshold detection - simplified logic
         if (totalUniqueMentions >= 3) {
-            const groupMetadata = await sock.groupMetadata(chatId);
-            const participants = groupMetadata.participants || [];
-            const totalParticipants = participants.length;
-            
-            // Dynamic threshold based on group size
-            let mentionThreshold;
-            if (totalParticipants <= 10) {
-                mentionThreshold = 3;
-            } else if (totalParticipants <= 30) {
-                mentionThreshold = Math.ceil(totalParticipants * 0.4);
-            } else {
-                mentionThreshold = Math.ceil(totalParticipants * 0.3);
+            // Get group metadata only when needed
+            if (!groupMetadata) {
+                groupMetadata = await sock.groupMetadata(chatId);
+                totalParticipants = groupMetadata.participants?.length || 0;
             }
             
-            // Check for mass mentions
+            // Faster threshold calculation
+            let mentionThreshold;
+            if (totalParticipants <= 10) mentionThreshold = 3;
+            else if (totalParticipants <= 30) mentionThreshold = Math.max(3, Math.ceil(totalParticipants * 0.3)); // Reduced from 0.4
+            else mentionThreshold = Math.max(5, Math.ceil(totalParticipants * 0.25)); // Reduced from 0.3
+
+            // Faster condition checks
             const hasMassMentions = totalUniqueMentions >= mentionThreshold;
-            const hasManyNumericMentions = numericMentions.length >= 8;
-            const hasExcessiveMentions = totalUniqueMentions >= 15;
+            const hasManyNumericMentions = numericMentions.length >= 5; // Reduced from 8
+            const hasExcessiveMentions = totalUniqueMentions >= 10; // Reduced from 15
 
             if (hasMassMentions || hasManyNumericMentions || hasExcessiveMentions) {
                 // Increment statistics
@@ -168,66 +181,50 @@ async function handleTagDetection(sock, chatId, message, senderId) {
                 const action = antitagSetting.action || 'delete';
                 const stats = getGroupStats(chatId);
                 
-                if (action === 'delete') {
-                    // Delete the message
-                    try {
-                        await sock.sendMessage(chatId, {
-                            delete: {
-                                remoteJid: chatId,
-                                fromMe: false,
-                                id: message.key.id,
-                                participant: senderId
-                            }
-                        });
-                    } catch (deleteError) {
-                        console.error('Failed to delete message:', deleteError);
-                    }
-                    
-                    // Send warning with stats
-                    await sock.sendMessage(chatId, {
-                        text: `⚠️ *Tagall Detected!*\n\n` +
-                              `📍 *Mentions:* ${totalUniqueMentions} users\n` +
-                              `📊 *Total Detected:* ${stats} messages\n` +
-                              `🚫 *Action:* Message deleted`
-                    });
-                    
-                } else if (action === 'kick') {
-                    // First delete the message
-                    try {
-                        await sock.sendMessage(chatId, {
-                            delete: {
-                                remoteJid: chatId,
-                                fromMe: false,
-                                id: message.key.id,
-                                participant: senderId
-                            }
-                        });
-                    } catch (deleteError) {
-                        console.error('Failed to delete message:', deleteError);
-                    }
-
-                    // Then kick the user
-                    try {
-                        await sock.groupParticipantsUpdate(chatId, [senderId], "remove");
-                        
-                        // Send notification with stats
-                        await sock.sendMessage(chatId, {
-                            text: `🚫 *Antitag Detected!*\n\n` +
-                                  `📍 *Mentions:* ${totalUniqueMentions} users\n` +
-                                  `👤 *User:* @${senderId.split('@')[0]}\n` +
-                                  `📊 *Total Detected:* ${stats} messages\n` +
-                                  `⚡ *Action:* User kicked`,
-                            mentions: [senderId]
-                        });
-                    } catch (kickError) {
-                        console.error('Failed to kick user:', kickError);
-                        await sock.sendMessage(chatId, {
-                            text: `⚠️ *Tagall Detected!*\nFailed to kick user (insufficient permissions). Message was deleted.`
-                        });
-                    }
-                }
+                // PARALLEL processing for speed
+                const actions = [];
                 
-                // Log the detection for debugging
+                // Always try to delete the message first
+                actions.push(
+                    sock.sendMessage(chatId, {
+                        delete: {
+                            remoteJid: chatId,
+                            fromMe: false,
+                            id: message.key.id,
+                            participant: senderId
+                        }
+                    }).catch(err => console.error('Delete failed:', err))
+                );
+
+                if (action === 'kick') {
+                    // Kick user in parallel
+                    actions.push(
+                        sock.groupParticipantsUpdate(chatId, [senderId], "remove")
+                            .then(() => {
+                                return sock.sendMessage(chatId, {
+                                    text: `🚫 *Antitag Detected!*\n\n📍 *Mentions:* ${totalUniqueMentions} users\n👤 *User:* @${senderId.split('@')[0]}\n📊 *Total Detected:* ${stats} messages\n⚡ *Action:* User kicked`,
+                                    mentions: [senderId]
+                                });
+                            })
+                            .catch(kickError => {
+                                console.error('Kick failed:', kickError);
+                                return sock.sendMessage(chatId, {
+                                    text: `⚠️ *Tagall Detected!*\nFailed to kick user. Message was deleted.`
+                                });
+                            })
+                    );
+                } else {
+                    // Send delete notification
+                    actions.push(
+                        sock.sendMessage(chatId, {
+                            text: `⚠️ *Tagall Detected!*\n\n📍 *Mentions:* ${totalUniqueMentions} users\n📊 *Total Detected:* ${stats} messages\n🚫 *Action:* Message deleted`
+                        })
+                    );
+                }
+
+                // Execute all actions in parallel
+                await Promise.allSettled(actions);
+                
                 console.log(`[ANTITAG] Group: ${chatId}, Mentions: ${totalUniqueMentions}, Action: ${action}, Total: ${stats}`);
             }
         }
