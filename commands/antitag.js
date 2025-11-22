@@ -1,6 +1,6 @@
 const { setAntitag, getAntitag, removeAntitag } = require('../lib/index');
 const isAdmin = require('../lib/isAdmin');
-const getPrefix = require('./setprefix');
+const { getPrefix, handleSetPrefixCommand } = require('./setprefix');
 // Store for counting detected tagall messages
 const antitagStats = new Map();
 
