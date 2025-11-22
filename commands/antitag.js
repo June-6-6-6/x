@@ -26,23 +26,56 @@ async function handleAntitagCommand(sock, chatId, userMessage, senderId, isSende
 
         switch (action) {
             case 'on':
+            case 'enable':
+            case 'activate':
                 const existingConfig = await getAntitag(chatId);
-                // Fixed: Check if antitag is already enabled
-                if (existingConfig?.enabled) {
-                    await sock.sendMessage(chatId, { text: '*_Antitag is already on_*' }, { quoted: message });
+                // FIXED: Better check for existing config
+                if (existingConfig && existingConfig.enabled) {
+                    await sock.sendMessage(chatId, { text: '*_Antitag is already ON_*' }, { quoted: message });
                     return;
                 }
-                // Fixed: Pass correct parameters to setAntitag
-                const result = await setAntitag(chatId, { enabled: true, action: 'delete' });
-                await sock.sendMessage(chatId, { 
-                    text: result ? '*_Antitag has been turned ON_*' : '*_Failed to turn on Antitag_*' 
-                }, { quoted: message });
+                
+                // FIXED: Create proper config object with default action
+                const config = { 
+                    enabled: true, 
+                    action: existingConfig?.action || 'delete' // Use existing action or default to 'delete'
+                };
+                
+                // FIXED: Ensure setAntitag is called correctly
+                const result = await setAntitag(chatId, config);
+                
+                if (result) {
+                    await sock.sendMessage(chatId, { 
+                        text: '*_✅ Antitag has been turned ON_*\n' +
+                              `*Action:* ${config.action}\n` +
+                              '*_Mass mentions will now be automatically detected and handled._*'
+                    }, { quoted: message });
+                    
+                    // Initialize stats if not exists
+                    if (!antitagStats.has(chatId)) {
+                        antitagStats.set(chatId, { count: 0, lastReset: new Date() });
+                    }
+                } else {
+                    await sock.sendMessage(chatId, { 
+                        text: '*_❌ Failed to turn on Antitag_*' 
+                    }, { quoted: message });
+                }
                 break;
 
             case 'off':
-                // Fixed: Use correct function signature
-                await removeAntitag(chatId);
-                await sock.sendMessage(chatId, { text: '*_Antitag has been turned OFF_*' }, { quoted: message });
+            case 'disable':
+            case 'deactivate':
+                // FIXED: Use correct function signature and check result
+                const removeResult = await removeAntitag(chatId);
+                if (removeResult) {
+                    await sock.sendMessage(chatId, { 
+                        text: '*_🔴 Antitag has been turned OFF_*' 
+                    }, { quoted: message });
+                } else {
+                    await sock.sendMessage(chatId, { 
+                        text: '*_Antitag was already OFF or failed to turn off_*' 
+                    }, { quoted: message });
+                }
                 break;
 
             case 'set':
@@ -59,31 +92,51 @@ async function handleAntitagCommand(sock, chatId, userMessage, senderId, isSende
                     }, { quoted: message });
                     return;
                 }
-                // Fixed: Update existing config with new action
+                
+                // FIXED: Get current config and update it properly
                 const currentConfig = await getAntitag(chatId) || {};
-                const setResult = await setAntitag(chatId, { 
+                const updatedConfig = { 
                     ...currentConfig, 
-                    enabled: true, 
+                    enabled: true, // Automatically enable when setting action
                     action: setAction 
-                });
-                await sock.sendMessage(chatId, { 
-                    text: setResult ? `*_Antitag action set to ${setAction}_*` : '*_Failed to set Antitag action_*' 
-                }, { quoted: message });
+                };
+                
+                const setResult = await setAntitag(chatId, updatedConfig);
+                
+                if (setResult) {
+                    await sock.sendMessage(chatId, { 
+                        text: `*_✅ Antitag action set to ${setAction}_*\n` +
+                              '*_Antitag is now enabled with this action._*'
+                    }, { quoted: message });
+                } else {
+                    await sock.sendMessage(chatId, { 
+                        text: '*_❌ Failed to set Antitag action_*' 
+                    }, { quoted: message });
+                }
                 break;
 
             case 'get':
+            case 'status':
                 const status = await getAntitag(chatId);
+                const stats = getGroupStats(chatId);
                 await sock.sendMessage(chatId, { 
-                    text: `*_Antitag Configuration:_*\nStatus: ${status?.enabled ? 'ON' : 'OFF'}\nAction: ${status?.action || 'delete'}\nTotal Detected: ${getGroupStats(chatId) || 0} messages` 
+                    text: `*_🛡️ Antitag Configuration:_*\n` +
+                          `*Status:* ${status?.enabled ? '🟢 ON' : '🔴 OFF'}\n` +
+                          `*Action:* ${status?.action || 'delete'}\n` +
+                          `*Total Detected:* ${stats || 0} messages`
                 }, { quoted: message });
                 break;
 
             case 'stats':
             case 'info':
                 const config = await getAntitag(chatId);
-                const stats = getGroupStats(chatId);
+                const groupStats = getGroupStats(chatId);
                 await sock.sendMessage(chatId, { 
-                    text: `*_📊 ANTITAG STATISTICS_*\n\n🔹 *Status:* ${config?.enabled ? '🟢 ON' : '🔴 OFF'}\n🔹 *Action:* ${config?.action || 'delete'}\n🔹 *Total Detected:* ${stats || 0} messages\n🔹 *Last Reset:* ${getLastResetTime(chatId)}` 
+                    text: `*_📊 ANTITAG STATISTICS_*\n\n` +
+                          `🔹 *Status:* ${config?.enabled ? '🟢 ON' : '🔴 OFF'}\n` +
+                          `🔹 *Action:* ${config?.action || 'delete'}\n` +
+                          `🔹 *Total Detected:* ${groupStats || 0} messages\n` +
+                          `🔹 *Last Reset:* ${getLastResetTime(chatId)}` 
                 }, { quoted: message });
                 break;
 
@@ -91,7 +144,7 @@ async function handleAntitagCommand(sock, chatId, userMessage, senderId, isSende
             case 'clear':
                 resetGroupStats(chatId);
                 await sock.sendMessage(chatId, { 
-                    text: '*_Antitag statistics have been reset_*' 
+                    text: '*_📊 Antitag statistics have been reset_*' 
                 }, { quoted: message });
                 break;
 
@@ -100,13 +153,14 @@ async function handleAntitagCommand(sock, chatId, userMessage, senderId, isSende
         }
     } catch (error) {
         console.error('Error in antitag command:', error);
-        await sock.sendMessage(chatId, { text: '*_Error processing antitag command_*' }, { quoted: message });
+        await sock.sendMessage(chatId, { text: '*_❌ Error processing antitag command_*' }, { quoted: message });
     }
 }
 
+// The rest of your functions remain the same...
 async function handleTagDetection(sock, chatId, message, senderId) {
     try {
-        // Fixed: Get antitag setting without second parameter
+        // FIXED: Get antitag setting without second parameter
         const antitagSetting = await getAntitag(chatId);
         if (!antitagSetting || !antitagSetting.enabled) return;
 
