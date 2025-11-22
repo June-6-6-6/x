@@ -226,13 +226,13 @@ async function updateCommand(sock, chatId, message, zipOverride) {
     
     try {
         // Send initial message and store it for editing
-        statusMessage = await sock.sendMessage(chatId, { text: '🔄 Updating the bot, please wait…' }, { quoted: message });
+        statusMessage = await sock.sendMessage(chatId, { text: '🔄 Updating *JUNE-X BOT*, please wait…' }, { quoted: message });
         
         if (await hasGitRepo()) {
             // Update status message
             if (statusMessage && statusMessage.key) {
                 await sock.sendMessage(chatId, { 
-                    text: '🔄 Updating JUNE-X via Github...',
+                    text: '🔄 Updating *JUNE-X* via Github...',
                     //edit: statusMessage.key
                 });
             }
@@ -266,7 +266,7 @@ async function updateCommand(sock, chatId, message, zipOverride) {
             // Update status message after ZIP extraction
             if (statusMessage && statusMessage.key) {
                 await sock.sendMessage(chatId, { 
-                    text: `🧯 Extracted ${copiedFiles.length} files\nℹ️ Installing *JUNE-X* dependencies...`,
+                    text: `⤵️ Extracted ${copiedFiles.length} files\nℹ️ Installing *JUNE-X* dependencies...`,
                     edit: statusMessage.key
                 });
             }
@@ -278,7 +278,7 @@ async function updateCommand(sock, chatId, message, zipOverride) {
         // Final update before restart
         if (statusMessage && statusMessage.key) {
             await sock.sendMessage(chatId, { 
-                text: '✅ Update completed! Restarting bot...',
+                text: '📩 Update completed! Restarting bot...',
                 edit: statusMessage.key
             });
         }
