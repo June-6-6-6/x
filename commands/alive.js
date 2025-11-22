@@ -57,23 +57,23 @@ function createFakeContact(message) {
 const fs = require('fs');
 const path = require('path');
         
-    const imgPath = path.join(__dirname, '../assets/menu1.jpg');
+    const imgPath = path.join(__dirname, '../assets/menu3.jpg');
     const imgBuffer2 = fs.readFileSync(imgPath);
-
+        
         await sock.sendMessage(chatId, {
-            image: imgBuffer2,
-            caption: message1,
+            text: message1,
             contextInfo: {
                 externalAdReply: {
-                    title: 'JUNE-X',
-                    body: "𝐉ᴜɴᴇ",
+                    showAdAttribution: false,
+                    title: "JUNE-X BOT",
+                    body: "JUNE-X",
+                    thumbnail: imgBuffer2,
+                    sourceUrl: "github.com",
                     mediaType: 1,
-                    sourceUrl: "https://github.com/Vinpink2",
-                    renderLargerThumbnail: false,
-                    showAdAttribution: false
-                }
-            }
-        },{ quoted: fake });  
+                    renderLargerThumbnail: true,
+                },
+            },
+        }, { quoted: fake }); 
         // uptime
 await sock.sendMessage(chatId, { text: `🔸 *${formattedUptime}*`},{ quoted: fake});
         
