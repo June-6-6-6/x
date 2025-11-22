@@ -48,6 +48,30 @@ const res = await fetch('https://api.github.com/repos/vinpink2/June-md');
     txt += `🔹  *Desc* : ${json.description || 'None'}\n\n`;
     txt += `@${userId} hey☺️  _Thank you for choosing June, Fork-Star the repository_`;
 
+    // Enhanced mentions handling
+    const mentions = [];
+    
+    // Always mention the user who triggered the command
+    mentions.push(userId + '@s.whatsapp.net');
+    
+    // Enhanced group mentions - mention all participants in group chats
+    let groupMembers = [];
+    if (chatId.endsWith('@g.us')) {
+        try {
+            const groupMetadata = await sock.groupMetadata(chatId);
+            groupMembers = groupMetadata.participants.map(p => p.id);
+            
+            // Add all group members to mentions for better visibility
+            mentions.push(...groupMembers);
+            
+            // Enhance text for groups
+            txt += `\n\n👥 *Group Members:* Check out June MD repository!`;
+        } catch (groupError) {
+            console.log('Could not fetch group metadata:', groupError.message);
+            // Continue without group mentions if there's an error
+        }
+    }
+
     // Use the local asset image
     const imgPath = path.join(__dirname, '../assets/menu2.jpg');
     const imgBuffer = fs.readFileSync(imgPath);
@@ -55,7 +79,7 @@ const res = await fetch('https://api.github.com/repos/vinpink2/June-md');
     await sock.sendMessage(chatId, {
         image: imgBuffer,
         caption: txt,
-        mentions: [userId + '@s.whatsapp.net'],
+        mentions: mentions,
         contextInfo: {
             forwardingScore: 1,
             isForwarded: false,
@@ -63,6 +87,15 @@ const res = await fetch('https://api.github.com/repos/vinpink2/June-md');
                 newsletterJid: '@newsletter',
                 newsletterName: 'June Official',
                 serverMessageId: -1
+            },
+            // Enhanced context info for better group visibility
+            mentionedJid: mentions,
+            externalAdReply: {
+                title: `June MD Repository Info`,
+                body: `Requested by ${pushname}`,
+                mediaType: 1,
+                thumbnail: imgBuffer,
+                sourceUrl: json.html_url
             }
         }
     }, { quoted: fkontak });   
@@ -73,7 +106,11 @@ const res = await fetch('https://api.github.com/repos/vinpink2/June-md');
     });
     
   } catch (error) {
-    await sock.sendMessage(chatId, { text: '❌ Error fetching repository information.' }, { quoted: message });
+    console.error('GitHub command error:', error);
+    await sock.sendMessage(chatId, { 
+        text: '❌ Error fetching repository information.',
+        mentions: [userId + '@s.whatsapp.net']
+    }, { quoted: message });
   }
 }
 
