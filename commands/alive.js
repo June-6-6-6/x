@@ -32,9 +32,12 @@ async function aliveCommand(sock, chatId, message) {
 📱 *Powered by:* ${settings.botName || 'WhatsApp Bot'}
 
 🟢 Use *menu* to see all available commands`;
+            // Use the local asset image
+    const imgPath = path.join(__dirname, '../assets/menu.jpg');
+    const imgBuffer2 = fs.readFileSync(imgPath);
 
         await sock.sendMessage(chatId, {
-            image: { url: },
+            image: imageBuffer2,
             caption: message1,
             contextInfo: {
                 externalAdReply: {
