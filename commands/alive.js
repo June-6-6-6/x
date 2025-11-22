@@ -36,7 +36,7 @@ async function aliveCommand(sock, chatId, message) {
 
 🟢 Use *menu* to see all available commands`;
             // Use the local asset image
-    const imgPath = path.join(__dirname, '../assets/menu.jpg');
+    const imgPath = path.join(__dirname, '../assets/menu1.jpg');
     const imgBuffer2 = fs.readFileSync(imgPath);
 
         await sock.sendMessage(chatId, {
