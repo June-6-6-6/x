@@ -66,9 +66,9 @@ const path = require('path');
                 externalAdReply: {
                     showAdAttribution: false,
                     title: "JUNE-X BOT",
-                    body: "JUNE-X",
+                    body: `${message.key.remoteJid}`,
                     thumbnail: imgBuffer2,
-                    sourceUrl: "github.com",
+                    sourceUrl: "https://github.com/vinpink2",
                     mediaType: 1,
                     renderLargerThumbnail: true,
                 },
