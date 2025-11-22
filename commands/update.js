@@ -179,7 +179,7 @@ async function updateViaZip(sock, chatId, message, zipOverride) {
 async function restartProcess(sock, chatId, message) {
     try {
         // Send final confirmation message to the user
-        await sock.sendMessage(chatId, { text: '_June Update complete! Restarting and clearing transient session data..._' }, { quoted: message });
+        await sock.sendMessage(chatId, { text: '_✨ June Update Complete! Refreshing system and clearing temporary data..._' }, { quoted: message });
     } catch {}
     
     // 1. Gracefully close the Baileys socket
@@ -236,44 +236,53 @@ async function updateCommand(sock, chatId, message, senderIsSudo, zipOverride) {
     const isSimpleRestart = commandText.toLowerCase().includes('restart') && !commandText.toLowerCase().includes('update');
 
     if (!message.key.fromMe && !senderIsSudo) {
-        await sock.sendMessage(chatId, { text: 'Only bot owner or sudo can use .restart or .Start command' }, { quoted: message });
+        await sock.sendMessage(chatId, { text: '🔒 Only bot owner or sudo can use .restart or .Start command' }, { quoted: message });
         return;
     }
 
     try {
         if (!isSimpleRestart) {
-             await sock.sendMessage(chatId, { text: '_Updating 💉.... please wait…_' }, { quoted: message });
-            // rection ✅
+            await sock.sendMessage(chatId, { text: '_🔄 Checking for updates... Please wait..._' }, { quoted: message });
+            // Reaction ✅
             await sock.sendMessage(chatId, {
-            react: { text: '🆙', key: message.key }
-        });
+                react: { text: '🆙', key: message.key }
+            });
             
-             if (await hasGitRepo()) {
-                 const { oldRev, newRev, alreadyUpToDate, commits, files } = await updateViaGit();
-                 const summary = alreadyUpToDate ? `✅ Already up to date: ${newRev}` : `✅ Updated to ${newRev}`;
-                 console.log('[update] summary generated');
-                 await run('npm install --no-audit --no-fund');
-             } else {
-                 const { copiedFiles } = await updateViaZip(sock, chatId, message, zipOverride);
-             }
+            if (await hasGitRepo()) {
+                const { oldRev, newRev, alreadyUpToDate, commits, files } = await updateViaGit();
+                const summary = alreadyUpToDate ? `✅ Already up to date: ${newRev}` : `✅ Updated to ${newRev}`;
+                console.log('[update] summary generated');
+                await run('npm install --no-audit --no-fund');
+                await sock.sendMessage(chatId, { text: '_📦 Installing dependencies..._' }, { quoted: message });
+            } else {
+                const { copiedFiles } = await updateViaZip(sock, chatId, message, zipOverride);
+            }
+            
+            await sock.sendMessage(chatId, { text: '_✅ Update successful! Preparing to restart..._' }, { quoted: message });
+        } else {
+            await sock.sendMessage(chatId, { text: '_🔄 Restart command received..._' }, { quoted: message });
         }
         
+        // Send restarting message with version info
         try {
             const v = require('../settings').version || '';
-            await sock.sendMessage(chatId, { text: `_JUNE-X BOT Restarting ...._` }, { quoted: message });
-// react again
-            await sock.sendMessage(chatId, {
+            const restartMsg = v ? 
+                `_🚀 JUNE-X BOT v${v} Restarting..._\n_💫 Please wait while the system refreshes..._` : 
+                `_🚀 JUNE-X BOT Restarting..._\n_💫 Please wait while the system refreshes..._`;
+            
+            await sock.sendMessage(chatId, { text: restartMsg }, { quoted: message });
+        } catch {
+            await sock.sendMessage(chatId, { text: '_🚀 JUNE-X BOT Restarting..._\n_💫 Please wait while the system refreshes..._' }, { quoted: message });
+        }
+        
+        // Final reaction
+        await sock.sendMessage(chatId, {
             react: { text: '💓', key: message.key }
         });
-            
-        } catch {
-            await sock.sendMessage(chatId, { text: 'Restared Successfully Enjoy_' }, { quoted: message });
-        }
         
         // This is where the actual restart logic is executed.
         await restartProcess(sock, chatId, message); 
-    } catch 
-(err) {
+    } catch (err) {
         console.error('Update failed:', err);
         await sock.sendMessage(chatId, { text: `❌ Update failed:\n${String(err.message || err)}` }, { quoted: message });
     }
