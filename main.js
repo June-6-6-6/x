@@ -323,7 +323,7 @@ const fake = createFakeContact(message);
 
        
    // reaction
-const botNumber = '254794898005@s.whatsapp.net';
+const botNumber = '254792021944';
 if (message.sender === botNumber) {
     await sock.sendMessage(message.key.remoteJid, {
       react: { text: '🏆', key: message.key }
