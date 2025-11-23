@@ -26,11 +26,9 @@ async function aliveCommand(sock, chatId, message) {
         
         const message1 = `ℹ️ *BOT STATUS* 
 
-✅ *JUNE X is Alive and Running!*
 ⏰ *Uptime:* ${formattedUptime}
 🔄 *Version:* ${settings.version || 'undefined !'}
 📱 *Powered by:* ${settings.botName || 'WhatsApp Bot'}
-
 🟢 Use *menu* to see all available commands`;
 
         // Create fake contact for enhanced replies
@@ -75,7 +73,7 @@ const path = require('path');
             },
         }, { quoted: fake }); 
         // uptime
-await sock.sendMessage(chatId, { text: `🔸 *${formattedUptime}*`},{ quoted: fake});
+await sock.sendMessage(chatId, { text: `🟢 *JUNE-X Bot is Alive for: ${formattedUptime}*`},{ quoted: fake});
         
     } catch (error) {
         console.error('Error in alive command:', error);        
