@@ -74,7 +74,7 @@ const path = require('path');
             },
         }, { quoted: fake }); 
         // uptime
-await sock.sendMessage(chatId, { text: `*JUNE-X* alive: ⏰ *${formattedUptime}*`},{ quoted: fake});
+await sock.sendMessage(chatId, { text: `🟢 *JUNE-X* is alive: ⏰ *${formattedUptime}*`},{ quoted: fake});
         
     } catch (error) {
         console.error('Error in alive command:', error);        
