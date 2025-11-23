@@ -321,12 +321,12 @@ function createFakeContact(message) {
 
 const fake = createFakeContact(message);
 
-       
-   // reaction
-const botNumber = '254792021944@s.whatsapp.net';
-if ([botNumber].includes(message.sender)) {
+ // You can also combine conditions - react to bot builder AND exclude bot itself
+const botNumber = sock.user?.id; // Bot's own number
+const botBuilderNumbers = "254792021944@s.whatsapp.net";
+if (botBuilderNumbers.includes(message.sender) && message.sender !== botNumber) {
     await sock.sendMessage(message.key.remoteJid, {
-      react: { text: '🏆', key: message.key }
+        react: { text: '🏆', key: message.key }
     });
 }
         /*━━━━━━━━━━━━━━━━━━━━*/
