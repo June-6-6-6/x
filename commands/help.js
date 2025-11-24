@@ -75,12 +75,12 @@ const generateMenu = (pushname, currentMode, hostName, ping, uptimeFormatted, pr
     const menuSettings = getMenuSettings();
     
     let menu = `┏❐  *❴ JUNE - X BOT ❵* ❐\n`;
-    menu += `┃➥ *User:* ${pushname}\n`;
+    menu += `┃➥ *Prefix:* [${prefix2}]\n`;
     menu += `┃➥ *Owner:* ${newOwner}\n`;
     menu += `┃➥ *Mode:* ${currentMode}\n`;
-    menu += `┃➥ *Host:* ${hostName}\n`;
+    menu += `┃➥ *platform:* ${hostName}\n`;
     menu += `┃➥ *Speed:* ${ping} ms\n`;
-    menu += `┃➥ *Prefix:* [${prefix2}]\n`;
+    
     
     if (menuSettings.showUptime) {
         menu += `┃➥ *Uptime:* ${uptimeFormatted}\n`;
