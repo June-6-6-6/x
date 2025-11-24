@@ -276,36 +276,22 @@ async function checkAndHandleSessionFormat() {
             log(chalk.white.bgRed('Cleaning .env and creating new one...'), 'white');
             log(chalk.red.bgBlack('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'), 'white');
             
-            try {
-    // Check if .env file exists, create if it doesn't
-    if (!fs.existsSync(envPath)) {
-        const defaultEnvContent = `# Environment Configuration
-SESSION_ID=
-
-# Add your session ID above 
-`;
-        
-        fs.writeFileSync(envPath, defaultEnvContent);
-        log('✅ Created .env file with template.', 'green');
-        log('Please add your SESSION_ID and restart the bot.', 'yellow');
-    } else {
-        // File exists, proceed with cleaning SESSION_ID
-        let envContent = fs.readFileSync(envPath, 'utf8');
-        
-        // Use regex to replace only the SESSION_ID line while preserving other variables
-        envContent = envContent.replace(/^SESSION_ID=.*$/m, 'SESSION_ID=');
-        
-        fs.writeFileSync(envPath, envContent);
-        log('✅ Cleaned SESSION_ID entry in .env file.', 'green');
-        log('Please add a proper session ID and restart the bot.', 'yellow');
-    }
-} catch (e) {
-    log(`Failed to modify .env file. Please check permissions: ${e.message}`, 'red', true);
-}
+         try {
+                let envContent = fs.readFileSync(envPath, 'utf8');
+                
+                // Use regex to replace only the SESSION_ID line while preserving other variables
+                envContent = envContent.replace(/^SESSION_ID=.*$/m, 'SESSION_ID=');
+                
+                fs.writeFileSync(envPath, envContent);
+                log('✅ Cleaned SESSION_ID entry in .env file.', 'green');
+                log('Please add a proper session ID and restart the bot.', 'yellow');
+            } catch (e) {
+                log(`Failed to modify .env file. Please check permissions: ${e.message}`, 'red', true);
+            }
             
             // Delay before exiting to allow user to read the message before automatic restart
             log('Bot will wait 30 seconds then restart', 'blue');
-            await delay(30000);
+            await delay(20000);
             
             // Exit with code 1 to ensure the hosting environment restarts the process
             process.exit(1);
@@ -710,7 +696,7 @@ function checkEnvStatus() {
         fs.watch(envPath, { persistent: false }, (eventType, filename) => {
             if (filename && eventType === 'change') {
                 log(chalk.bgRed.black('================================================='), 'white');
-                log(chalk.white.bgRed('🚨 .env file change detected!'), 'white');
+                log(chalk.white.bgRed('🔻 .env file change detected!'), 'white');
                 log(chalk.white.bgRed('Forcing a clean restart to apply new configuration (e.g., SESSION_ID).'), 'white');
                 log(chalk.red.bgBlack('================================================='), 'white');
                 
@@ -771,7 +757,7 @@ async function tylor() {
     const envSessionID = process.env.SESSION_ID?.trim();
 
     if (envSessionID && envSessionID.startsWith('JUNE-MD')) { 
-        log("🔥 PRIORITY MODE: Found new/updated SESSION_ID in .env/environment variables.", 'magenta');
+        log(" [PRIORITY MODE]: Found new SESSION_ID in environment variable.", 'magenta');
         
         // 4a. Force the use of the new session by cleaning any old persistent files.
         clearSessionFiles(); 
@@ -782,7 +768,7 @@ async function tylor() {
         await saveLoginMethod('session'); 
 
         // 4c. Start bot with the newly created session files
-        log("Valid session found (from .env), starting bot directly...", 'green');
+        log("Valid session found from .env...", 'green');
         log('Waiting 3 seconds for stable connection...', 'yellow'); 
         await delay(3000);
         await startXeonBotInc();
@@ -793,15 +779,15 @@ async function tylor() {
         return;
     }
     // If environment session is NOT set, or not valid, continue with fallback logic:
-    log("ℹ️ No new SESSION_ID found in .env. Falling back to stored session or interactive login.", 'yellow');
+    log("[ALERT] No new SESSION_ID found in .env. Falling back to stored session.", 'yellow');
 
     // 5. Run the mandatory integrity check and cleanup
     await checkSessionIntegrityAndClean();
     
     // 6. Check for a valid *stored* session after cleanup
     if (sessionExists()) {
-        log("Valid session found, starting bot directly...", 'green'); 
-        log('Waiting 3 seconds for stable connection...', 'yellow');
+        log("[ALERT]: Valid session found, starting bot directly...", 'green'); 
+        log('[ALERT]: Waiting 3 seconds for stable connection...', 'yellow');
         await delay(3000);
         await startXeonBotInc();
         
@@ -824,13 +810,14 @@ async function tylor() {
         XeonBotInc = await startXeonBotInc();
         await requestPairingCode(XeonBotInc); 
     } else {
-        log("Failed to get valid login method. Exiting.", 'red');
+        log("[ALERT]: Failed to get valid login method.", 'red');
         return;
     }
     
     // 8. Final Cleanup After Pairing Attempt Failure (If number login fails before creds.json is written)
     if (loginMethod === 'number' && !sessionExists() && fs.existsSync(sessionDir)) {
-        log('Login interrupted/failed. Clearing temporary session files and restarting...', 'red');
+        log('[ALERT]: Login interrupted [FAILED]. Clearing temporary session files ...', 'red');
+        log('[ALERT]: Restarting for instance...', 'red');
         
         clearSessionFiles(); // Use the helper function
         
