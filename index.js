@@ -225,7 +225,6 @@ const sessionDir = path.join(__dirname, 'session')
 const credsPath = path.join(sessionDir, 'creds.json')
 const loginFile = path.join(sessionDir, 'login.json')
 const envPath = path.join(process.cwd(), '.env');
-//const envPath = path.join(__dirname, '.env') // Path to the .env file
 
 /*━━━━━━━━━━━━━━━━━━━━*/
 // --- Login persistence (JUNE MD) ---
@@ -278,17 +277,31 @@ async function checkAndHandleSessionFormat() {
             log(chalk.red.bgBlack('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'), 'white');
             
             try {
-                let envContent = fs.readFileSync(envPath, 'utf8');
-                
-                // Use regex to replace only the SESSION_ID line while preserving other variables
-                envContent = envContent.replace(/^SESSION_ID=.*$/m, 'SESSION_ID=');
-                
-                fs.writeFileSync(envPath, envContent);
-                log('✅ Cleaned SESSION_ID entry in .env file.', 'green');
-                log('Please add a proper session ID and restart the bot.', 'yellow');
-            } catch (e) {
-                log(`Failed to modify .env file. Please check permissions: ${e.message}`, 'red', true);
-            }
+    // Check if .env file exists, create if it doesn't
+    if (!fs.existsSync(envPath)) {
+        const defaultEnvContent = `# Environment Configuration
+SESSION_ID=
+
+# Add your session ID above 
+`;
+        
+        fs.writeFileSync(envPath, defaultEnvContent);
+        log('✅ Created .env file with template.', 'green');
+        log('Please add your SESSION_ID and restart the bot.', 'yellow');
+    } else {
+        // File exists, proceed with cleaning SESSION_ID
+        let envContent = fs.readFileSync(envPath, 'utf8');
+        
+        // Use regex to replace only the SESSION_ID line while preserving other variables
+        envContent = envContent.replace(/^SESSION_ID=.*$/m, 'SESSION_ID=');
+        
+        fs.writeFileSync(envPath, envContent);
+        log('✅ Cleaned SESSION_ID entry in .env file.', 'green');
+        log('Please add a proper session ID and restart the bot.', 'yellow');
+    }
+} catch (e) {
+    log(`Failed to modify .env file. Please check permissions: ${e.message}`, 'red', true);
+}
             
             // Delay before exiting to allow user to read the message before automatic restart
             log('Bot will wait 30 seconds then restart', 'blue');
