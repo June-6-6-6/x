@@ -399,25 +399,24 @@ async function sendWelcomeMessage(XeonBotInc) {
     // CRITICAL: Wait 10 seconds for the connection to fully stabilize
     await delay(10000); 
 
-    // 🧩 Host Detection Function
-function detectHost() {
-    const env = process.env;
+ 
+    // Detect host/platform
+    const detectPlatform = () => {
+      if (process.env.DYNO) return "Heroku";
+      if (process.env.RENDER) return "Render";
+      if (process.env.PREFIX && process.env.PREFIX.includes("termux")) return "Termux";
+      if (process.env.PORTS && process.env.CYPHERX_HOST_ID) return "CypherX Platform";
+      if (process.env.P_SERVER_UUID) return "Panel";
+      if (process.env.LXC) return "Linux Container (LXC)";
+      switch (os.platform()) {
+        case "win32": return "Windows";
+        case "darwin": return "macOS";
+        case "linux": return "Linux";
+        default: return "Unknown";
+      }
+    };
 
-    if (env.RENDER || env.RENDER_EXTERNAL_URL) return 'Render';
-    if (env.DYNO || env.HEROKU_APP_DIR || env.HEROKU_SLUG_COMMIT) return 'Heroku';
-    if (env.PORTS || env.CYPHERX_HOST_ID) return "CypherXHost"; 
-    if (env.VERCEL || env.VERCEL_ENV || env.VERCEL_URL) return 'Vercel';
-    if (env.RAILWAY_ENVIRONMENT || env.RAILWAY_PROJECT_ID) return 'Railway';
-    if (env.REPL_ID || env.REPL_SLUG) return 'Replit';
-
-    const hostname = os.hostname().toLowerCase();
-    if (!env.CLOUD_PROVIDER && !env.DYNO && !env.VERCEL && !env.RENDER) {
-        if (hostname.includes('vps') || hostname.includes('server')) return 'VPS';
-        return 'Panel';
-    }
-
-    return 'Unknown Host';
-}
+    const hostName = detectPlatform();
     
 
     try {
@@ -428,8 +427,7 @@ function detectHost() {
         global.isBotConnected = true;
         const pNumber = XeonBotInc.user.id.split(':')[0] + '@s.whatsapp.net';
         let data = JSON.parse(fs.readFileSync('./data/messageCount.json'));
-        const currentMode = data.isPublic ? 'public' : 'private';    
-        const hostName = detectHost();
+        const currentMode = data.isPublic ? 'public' : 'private';           
         const prefix = getPrefix();
 
         // Send the message
@@ -439,7 +437,7 @@ function detectHost() {
 ┃✧ Prefix: [${prefix}]
 ┃✧ mode: ${currentMode}
 ┃✧ Platform: ${hostName}
-┃✧ Bot: JUNE MD
+┃✧ Bot: JUNE-X
 ┃✧ Status: Active
 ┃✧ Time: ${new Date().toLocaleString()}
 ┗━━━━━━━━━━━━━━━━━━━`
