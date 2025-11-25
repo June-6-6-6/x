@@ -25,7 +25,6 @@ async function aliveCommand(sock, chatId, message) {
         const formattedUptime = formatUptime(uptime);
         
         const message1 = `ℹ️ *BOT STATUS* 
-
 ⏰ *Uptime:* ${formattedUptime}
 🔄 *Version:* ${settings.version || 'undefined !'}
 📱 *Powered by:* ${settings.botName || 'WhatsApp Bot'}
@@ -73,8 +72,6 @@ const path = require('path');
                 },
             },
         }, { quoted: fake }); 
-        // uptime
-await sock.sendMessage(chatId, { text: `🟢 *JUNE-X* is alive: ⏰ *${formattedUptime}*`},{ quoted: fake});
         
     } catch (error) {
         console.error('Error in alive command:', error);        
