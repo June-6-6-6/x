@@ -314,8 +314,8 @@ async function helpCommand(sock, chatId, message) {
 
     const uptimeInSeconds = process.uptime();
     const uptimeFormatted = formatTime(uptimeInSeconds);
-    const currentMode = data.isPublic ? 'public' : 'private';    
-    const hostName = detectHost();
+    const currentMode = data.isPublic ? 'public' : 'private';
+    const hostName = detectPlatform();
     
     const menulist = generateMenu(pushname, currentMode, hostName, ping, uptimeFormatted);
 
