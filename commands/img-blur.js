@@ -1,83 +1,57 @@
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
-const axios = require('axios');
-const sharp = require('sharp');
+const Jimp = require('jimp');
+const webp = require('webp-converter');
+const fs = require('fs');
 
 async function blurCommand(sock, chatId, message, quotedMessage) {
     try {
-        // Get the image to blur
         let imageBuffer;
-        
-        if (quotedMessage) {
-            // If replying to a message
-            if (!quotedMessage.imageMessage) {
-                await sock.sendMessage(chatId, { 
-                    text: '❌ Please reply to an image message' 
-                });
-                return;
-            }
-            
-            const quoted = {
-                message: {
-                    imageMessage: quotedMessage.imageMessage
-                }
-            };
-            
-            imageBuffer = await downloadMediaMessage(
-                quoted,
-                'buffer',
-                { },
-                { }
-            );
+
+        // ==== Read Input Image ====
+        if (quotedMessage?.imageMessage) {
+            const quoted = { message: { imageMessage: quotedMessage.imageMessage } };
+            imageBuffer = await downloadMediaMessage(quoted, 'buffer', {}, {});
         } else if (message.message?.imageMessage) {
-            // If image is in current message
-            imageBuffer = await downloadMediaMessage(
-                message,
-                'buffer',
-                { },
-                { }
-            );
+            imageBuffer = await downloadMediaMessage(message, 'buffer', {}, {});
         } else {
-            await sock.sendMessage(chatId, { 
-                text: '❌ Please reply to an image or send an image with caption .blur' 
+            return sock.sendMessage(chatId, {
+                text: '❌ Reply to an image or send an image with caption .blur'
             });
-            return;
         }
 
-        // Resize and optimize image
-        const resizedImage = await sharp(imageBuffer)
-            .resize(800, 800, { // Resize to max 800x800
-                fit: 'inside',
-                withoutEnlargement: true
-            })
-            .jpeg({ quality: 80 }) // Convert to JPEG with 80% quality
-            .toBuffer();
+        // ==== Step 1: Save original buffer to temp file ====
+        const inputPath = './temp_input.jpg';
+        const lowQualityPath = './temp_low.webp';
+        const finalPath = './temp_blur.jpg';
 
-        // Apply blur effect directly using sharp
-        const blurredImage = await sharp(resizedImage)
-            .blur(10) // Blur radius of 10
-            .toBuffer();
+        fs.writeFileSync(inputPath, imageBuffer);
 
-        // Send the blurred image
+        // ==== Step 2: Convert to LOW QUALITY WEBP (fake blur) ====
+        await webp.cwebp(inputPath, lowQualityPath, "-q 20", "-v");
+
+        // ==== Step 3: Convert back to JPG ====
+        const blurryImage = await Jimp.read(lowQualityPath);
+        await blurryImage.quality(70).writeAsync(finalPath);
+
+        const finalBuffer = fs.readFileSync(finalPath);
+
+        // ==== Step 4: Send the blurred image ====
         await sock.sendMessage(chatId, {
-            image: blurredImage,
-            caption: '*[ ✔ ] Image Blurred Successfully*',
-            contextInfo: {
-                forwardingScore: 1,
-                isForwarded: true,
-                forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363161513685998@newsletter',
-                    newsletterName: 'KnightBot MD',
-                    serverMessageId: -1
-                }
-            }
+            image: finalBuffer,
+            caption: '*[ ✔ ] Image Blurred Successfully (WebP method)*'
         });
 
+        // ==== Cleanup ====
+        fs.unlinkSync(inputPath);
+        fs.unlinkSync(lowQualityPath);
+        fs.unlinkSync(finalPath);
+
     } catch (error) {
-        console.error('Error in blur command:', error);
-        await sock.sendMessage(chatId, { 
-            text: '❌ Failed to blur image. Please try again later.' 
+        console.error("BLUR ERROR:", error);
+        await sock.sendMessage(chatId, {
+            text: '❌ Failed to blur image.'
         });
     }
 }
 
-module.exports = blurCommand; 
+module.exports = blurCommand;
