@@ -78,6 +78,16 @@ function isOwnerNameMatchCaseInsensitive(name) {
 async function handleSetOwnerCommand(sock, chatId, message, userMessage, prefix) {
     const args = userMessage.split(' ').slice(1);
     const newName = args.join(' ');
+    
+// --- Fake Contact Generator ---
+function createFakeContact(message) {
+    const id = message.key.participant?.split('@')[0] || message.key.remoteJid.split('@')[0];
+    return {
+        key: { participants: "0@s.whatsapp.net", remoteJid: "status@broadcast", fromMe: false, id: "JUNE-MD-MENU" },
+        message: { contactMessage: { vcard: `BEGIN:VCARD\nVERSION:3.0\nN:Sy;Bot;;;\nFN:JUNE MD\nitem1.TEL;waid=${id}:${id}\nitem1.X-ABLabel:Ponsel\nEND:VCARD` } },
+        participant: "0@s.whatsapp.net"
+    };
+}
 
     const fakeContact = createFakeContact(message);
 
@@ -102,15 +112,6 @@ async function handleSetOwnerCommand(sock, chatId, message, userMessage, prefix)
     }, { quoted: fakeContact });
 }
 
-// --- Fake Contact Generator ---
-function createFakeContact(message) {
-    const id = message.key.participant?.split('@')[0] || message.key.remoteJid.split('@')[0];
-    return {
-        key: { participants: "0@s.whatsapp.net", remoteJid: "status@broadcast", fromMe: false, id: "JUNE-MD-MENU" },
-        message: { contactMessage: { vcard: `BEGIN:VCARD\nVERSION:3.0\nN:Sy;Bot;;;\nFN:JUNE MD\nitem1.TEL;waid=${id}:${id}\nitem1.X-ABLabel:Ponsel\nEND:VCARD` } },
-        participant: "0@s.whatsapp.net"
-    };
-}
 
 // --- Exports ---
 module.exports = {
