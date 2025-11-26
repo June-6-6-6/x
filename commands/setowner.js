@@ -3,7 +3,7 @@ const path = require('path');
 
 // Path to store owner settings
 const OWNER_FILE = path.join(__dirname, '..', 'data', 'owner.json');
-const DEFAULT_OWNER_NAME = 'Not set !';
+const DEFAULT_OWNER_NAME = 'Not set!';
 
 // Ensure data directory exists
 const dataDir = path.join(__dirname, '..', 'data');
@@ -108,7 +108,7 @@ function createFakeContact(message) {
 
 async function handleSetOwnerCommand(sock, chatId, senderId, message, userMessage, currentPrefix) {
     const args = userMessage.split(' ').slice(1);
-    const input = args.join(' ');
+    const input = args.join(' ').trim(); // Added trim here
     const fake = createFakeContact(message);
     
     // Only bot owner can change owner name
@@ -122,7 +122,7 @@ async function handleSetOwnerCommand(sock, chatId, senderId, message, userMessag
     if (!input) {
         const current = getOwnerName();
         await sock.sendMessage(chatId, { 
-            text: `👑 Current Owner Name: *${current}*\n\nUsage: ${currentPrefix}setowner <new_name>\nExample: ${currentPrefix}setowner Supreme\nExample: ${currentPrefix}setowner UPPER john doe\n\nTo reset: ${currentPrefix}setowner reset`
+            text: `👑 Current Owner Name: *${current}*\n\nUsage: ${currentPrefix}setowner <new_name>\nExamples:\n• ${currentPrefix}setowner Supreme\n• ${currentPrefix}setowner supreme\n• ${currentPrefix}setowner SupremeLord\n• ${currentPrefix}setowner UPPER supremelord\n\nTo reset: ${currentPrefix}setowner reset`
         }, { quoted: fake });
         return;
     }
@@ -137,13 +137,14 @@ async function handleSetOwnerCommand(sock, chatId, senderId, message, userMessag
         return;
     }
 
-    // Check for uppercase option
+    // Check for uppercase option (case-insensitive)
     let nameToSet = input;
     let useUpperCase = false;
     
-    if (input.toLowerCase().startsWith('upper ')) {
+    const lowerInput = input.toLowerCase();
+    if (lowerInput.startsWith('upper ')) {
         useUpperCase = true;
-        nameToSet = input.substring(6); // Remove "upper " prefix
+        nameToSet = input.substring(6).trim(); // Remove "upper " prefix and trim
     }
 
     const validation = validateOwnerName(nameToSet);
@@ -184,6 +185,31 @@ function isOwnerNameMatch(nameToCheck, caseSensitive = true) {
         currentOwner.toLowerCase() === nameToCheck.toLowerCase();
 }
 
+// Test function to verify the names work
+function testOwnerNames() {
+    console.log('Testing owner name functionality...');
+    
+    // Test cases
+    const testNames = ['Supreme', 'supreme', 'SupremeLord', 'UPPER supreme'];
+    
+    testNames.forEach(name => {
+        const isUppercase = name.toLowerCase().startsWith('upper ');
+        const actualName = isUppercase ? name.substring(6).trim() : name;
+        
+        const validation = validateOwnerName(actualName);
+        console.log(`Name: "${name}" -> Valid: ${validation.isValid}, Message: ${validation.message}`);
+        
+        if (validation.isValid) {
+            const success = setOwnerName(actualName, { upperCase: isUppercase });
+            const result = getOwnerName();
+            console.log(`Set result: ${success}, Current owner: "${result}"`);
+        }
+    });
+}
+
+// Uncomment to run tests
+// testOwnerNames();
+
 module.exports = {
     getOwnerName,
     setOwnerName,
@@ -192,5 +218,6 @@ module.exports = {
     validateOwnerName,
     getOwnerInfo,
     isOwnerNameMatch,
-    DEFAULT_OWNER_NAME
+    DEFAULT_OWNER_NAME,
+    testOwnerNames // Export for manual testing
 };
