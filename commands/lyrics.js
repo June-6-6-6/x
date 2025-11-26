@@ -1,6 +1,6 @@
 const fetch = require('node-fetch');
-const { JSDOM } = require('jsdom');
-const sharp = require('sharp');
+//const { JSDOM } = require('jsdom');
+//const sharp = require('sharp');
 const axios = require('axios');
 
 async function lyricsCommand(sock, chatId, songTitle, message) {
@@ -41,7 +41,7 @@ async function lyricsCommand(sock, chatId, songTitle, message) {
         // Process reaction
         await sock.sendMessage(chatId, { react: { text: "📝", key: message.key } });
 
-        const maxChars = 4096;
+        const maxChars = 60000;
         const truncatedLyrics = lyrics.length > maxChars ? lyrics.slice(0, maxChars - 3) + '...' : lyrics;
 
         // Create formatted caption with song info
