@@ -12,11 +12,49 @@ async function dareCommand(sock, chatId, message) {
         const json = await res.json();
         const dareMessage = json.result;
 
-        // Send the dare message
-        await sock.sendMessage(chatId, { text: dareMessage }, { quoted: message });
+        // Dare-themed images (you can expand this list)
+        const dareImages = [
+            "https://i.imgur.com/3ZQ3ZQ3.png", // example dare icon
+            "https://i.imgur.com/6Q7z5J2.png", // truth/dare style icon
+            "https://i.imgur.com/abc1234.png"  // replace with your own
+        ];
+
+        // Pick a random dare image
+        const dareImageUrl = dareImages[Math.floor(Math.random() * dareImages.length)];
+
+        // Fetch the image
+        const imgRes = await fetch(dareImageUrl);
+        const imageBuffer = await imgRes.buffer();
+
+        // Send the dare message with image
+        await sock.sendMessage(
+            chatId, 
+            { 
+                image: imageBuffer, 
+                caption: `🔥 *Dare Challenge:*\n\n${dareMessage}`
+            }, 
+            { quoted: message }
+        );
     } catch (error) {
         console.error('Error in dare command:', error);
-        await sock.sendMessage(chatId, { text: '❌ Failed to get dare. Please try again later!' }, { quoted: message });
+
+        // Fallback: send text + default dare image
+        const fallbackImageUrl = "https://i.imgur.com/6Q7z5J2.png";
+        try {
+            const imgRes = await fetch(fallbackImageUrl);
+            const imageBuffer = await imgRes.buffer();
+
+            await sock.sendMessage(
+                chatId, 
+                { 
+                    image: imageBuffer, 
+                    caption: '❌ Failed to get dare. Please try again later!' 
+                }, 
+                { quoted: message }
+            );
+        } catch (fallbackError) {
+            await sock.sendMessage(chatId, { text: '❌ Failed to get dare. Please try again later!' }, { quoted: message });
+        }
     }
 }
 
