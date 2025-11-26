@@ -1,172 +1,89 @@
-const axios = require('axios');
-const { sleep } = require('../lib/myfunc');
+async function pairCommand(sock, chatId, message) {
+    // ✅ Fix for node-fetch v3.x (ESM-only module)
+    const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function pairCommand(sock, chatId, message, q) {
     try {
-        if (!q) {
+        // Extract text from different message types
+        const q = message?.conversation ||
+                 message?.extendedTextMessage?.text ||
+                 message?.imageMessage?.caption ||
+                 message?.videoMessage?.caption || '';
+
+        console.log("📥 Raw message text:", q);
+
+        const number = q.replace(/^[.\/!]pair\s*/i, '').trim();
+
+        if (!number) {
             return await sock.sendMessage(chatId, {
-                text: "Please provide valid WhatsApp number\nExample: .pair 91702395XXXX\nOr multiple: .pair 91702395XXXX,918123456789",
-                contextInfo: {
-                    forwardingScore: 1,
-                    isForwarded: true,
-                    forwardedNewsletterMessageInfo: {
-                        newsletterJid: '',
-                        newsletterName: ' MD',
-                        serverMessageId: -1
-                    }
-                }
-            });
+                text: '*📌 Usage:* .pair +9476066XXXX\n*Example:* .pair +94761234567'
+            }, { quoted: message });
         }
 
-        const numbers = q.split(',')
-            .map((v) => v.trim().replace(/[^0-9]/g, ''))
-            .filter((v) => v.length > 5 && v.length < 20);
-
-        // Remove duplicates
-        const uniqueNumbers = [...new Set(numbers)];
-
-        if (uniqueNumbers.length === 0) {
+        // Validate phone number format
+        if (!/^\+?\d{10,15}$/.test(number.replace(/\s/g, ''))) {
             return await sock.sendMessage(chatId, {
-                text: "Invalid number❌️ Please use the correct format!\nExample: .pair 91702395XXXX or .pair 91702395XXXX,918123456789",
-                contextInfo: {
-                    forwardingScore: 1,
-                    isForwarded: true,
-                    forwardedNewsletterMessageInfo: {
-                        newsletterJid: '',
-                        newsletterName: ' MD',
-                        serverMessageId: -1
-                    }
-                }
-            });
+                text: '❌ Invalid phone number format.\n*Please use:* +9476066XXXX'
+            }, { quoted: message });
         }
 
-        if (uniqueNumbers.length > 5) {
+        console.log("🔍 Processing number:", number);
+
+        const url = `https://a-sula-mini-6ae993c26705.herokuapp.com/code?number=${encodeURIComponent(number)}`;
+        console.log("🌐 API URL:", url);
+
+        const response = await fetch(url);
+        const statusCode = response.status;
+        const bodyText = await response.text();
+
+        console.log("📊 API Status:", statusCode);
+        console.log("🌐 API Response:", bodyText);
+
+        if (statusCode !== 200) {
             return await sock.sendMessage(chatId, {
-                text: "Too many numbers! Please provide maximum 5 numbers at a time.",
-                contextInfo: {
-                    forwardingScore: 1,
-                    isForwarded: true,
-                    forwardedNewsletterMessageInfo: {
-                        newsletterJid: '',
-                        newsletterName: ' MD',
-                        serverMessageId: -1
-                    }
-                }
-            });
+                text: `❌ API Error: Server returned status ${statusCode}\n\nPlease try again later.`
+            }, { quoted: message });
         }
 
+        let result;
+        try {
+            result = JSON.parse(bodyText);
+        } catch (e) {
+            console.error("❌ JSON Parse Error:", e);
+            return await sock.sendMessage(chatId, {
+                text: '❌ Invalid response from server.\n\n*Response received:* ' + bodyText.substring(0, 100) + '...'
+            }, { quoted: message });
+        }
+
+        if (!result || !result.code) {
+            console.error("❌ No code in response:", result);
+            return await sock.sendMessage(chatId, {
+                text: '❌ Failed to retrieve pairing code.\n\n*Possible reasons:*\n• Invalid number format\n• Server issue\n• Number not supported\n\nPlease check the number and try again.'
+            }, { quoted: message });
+        }
+
+        console.log("✅ Pairing code retrieved:", result.code);
+
+        // Send success message
         await sock.sendMessage(chatId, {
-            text: `Processing ${uniqueNumbers.length} number(s)... Please wait.`,
-            contextInfo: {
-                forwardingScore: 1,
-                isForwarded: true,
-                forwardedNewsletterMessageInfo: {
-                    newsletterJid: '@newsletter',
-                    newsletterName: ' MD',
-                    serverMessageId: -1
-                }
-            }
-        });
+            text: `> *𝐑𝙾𝙾𝚃_𝐗 𝐌𝙳 𝐌𝙸𝙽𝙸 𝐁𝙾𝚃 𝐏𝙰𝙸𝚁 𝐂𝙾𝙼𝙿𝙻𝙴𝚃𝙴𝙳* ✅\n\n*📱 Number:* ${number}\n*🔑 Your pairing code is:* ${result.code}\n\n_Use this code to pair your device._`
+        }, { quoted: message });
 
-        const results = [];
-        
-        for (const [index, number] of uniqueNumbers.entries()) {
-            try {
-                const whatsappID = number + '@s.whatsapp.net';
-                const result = await sock.onWhatsApp(whatsappID);
+        // Wait 2 seconds
+        await sleep(2000);
 
-                if (!result[0]?.exists) {
-                    results.push({ number, status: 'error', message: 'Not registered on WhatsApp' });
-                    continue; // Continue with next number instead of returning
-                }
-
-                // Add delay between API calls to avoid rate limiting
-                if (index > 0) {
-                    await sleep(2000);
-                }
-
-                const response = await axios.get(`https://knight-bot-paircode.onrender.com/code?number=${number}`, {
-                    timeout: 10000 // 10 second timeout
-                });
-                
-                if (response.data && response.data.code) {
-                    const code = response.data.code;
-                    if (code === "Service Unavailable") {
-                        results.push({ number, status: 'error', message: 'Service temporarily unavailable' });
-                        continue;
-                    }
-                    
-                    results.push({ number, status: 'success', code });
-                    
-                } else {
-                    results.push({ number, status: 'error', message: 'Invalid response from server' });
-                }
-                
-            } catch (numberError) {
-                console.error(`Error processing number ${number}:`, numberError);
-                
-                let errorMessage = 'Unknown error occurred';
-                if (numberError.code === 'ECONNABORTED' || numberError.message.includes('timeout')) {
-                    errorMessage = 'Request timeout';
-                } else if (numberError.response?.status === 429) {
-                    errorMessage = 'Rate limit exceeded';
-                } else if (numberError.message === 'Service Unavailable') {
-                    errorMessage = 'Service temporarily unavailable';
-                }
-                
-                results.push({ number, status: 'error', message: errorMessage });
-            }
-        }
-
-        // Generate summary message
-        const successResults = results.filter(r => r.status === 'success');
-        const errorResults = results.filter(r => r.status === 'error');
-
-        let summaryMessage = `*Pairing Results:*\n\n`;
-        
-        if (successResults.length > 0) {
-            summaryMessage += `*✅ Success (${successResults.length}):*\n`;
-            successResults.forEach((result, index) => {
-                summaryMessage += `${index + 1}. ${result.number}: ${result.code}\n`;
-            });
-            summaryMessage += '\n';
-        }
-
-        if (errorResults.length > 0) {
-            summaryMessage += `*❌ Failed (${errorResults.length}):*\n`;
-            errorResults.forEach((result, index) => {
-                summaryMessage += `${index + 1}. ${result.number}: ${result.message}\n`;
-            });
-        }
-
+        // Send code separately for easy copying
         await sock.sendMessage(chatId, {
-            text: summaryMessage,
-            contextInfo: {
-                forwardingScore: 1,
-                isForwarded: true,
-                forwardedNewsletterMessageInfo: {
-                    newsletterJid: '@newsletter',
-                    newsletterName: ' MD',
-                    serverMessageId: -1
-                }
-            }
-        });
+            text: `📋 *Code for copying:*\n\`\`\`${result.code}\`\`\``
+        }, { quoted: message });
 
     } catch (error) {
-        console.error('Critical error in pairCommand:', error);
+        console.error('❌ Error in pairCommand:', error);
+        
         await sock.sendMessage(chatId, {
-            text: "A critical error occurred. Please try again later.",
-            contextInfo: {
-                forwardingScore: 1,
-                isForwarded: true,
-                forwardedNewsletterMessageInfo: {
-                    newsletterJid: '@newsletter',
-                    newsletterName: ' MD',
-                    serverMessageId: -1
-                }
-            }
-        });
+            text: `❌ *Unexpected Error Occurred*\n\n*Error Details:* ${error.message}\n\nPlease try again later or contact support.`
+        }, { quoted: message });
     }
 }
 
-module.exports = pairCommand;
+module.exports = { pairCommand };
