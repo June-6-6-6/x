@@ -1,119 +1,189 @@
 const fs = require('fs');
 const path = require('path');
 
-// Paths & Defaults
-const DATA_DIR = path.join(__dirname, '..', 'data');
-const OWNER_FILE = path.join(DATA_DIR, 'owner.json');
+// Path to store owner settings
+const OWNER_FILE = path.join(__dirname, '..', 'data', 'owner.json');
 const DEFAULT_OWNER_NAME = 'Not set !';
 
-// Ensure data directory & file exist
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-if (!fs.existsSync(OWNER_FILE)) saveOwner(DEFAULT_OWNER_NAME);
+// Ensure data directory exists
+const dataDir = path.join(__dirname, '..', 'data');
+if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+}
 
-// --- Utility Functions ---
+// Initialize owner file if it doesn't exist
+if (!fs.existsSync(OWNER_FILE)) {
+    fs.writeFileSync(OWNER_FILE, JSON.stringify({ ownerName: DEFAULT_OWNER_NAME }, null, 2));
+}
 
-function readOwnerFile() {
+/**
+ * Get the current owner name
+ */
+function getOwnerName() {
     try {
-        return JSON.parse(fs.readFileSync(OWNER_FILE, 'utf8'));
-    } catch {
-        return { ownerName: DEFAULT_OWNER_NAME };
+        const data = JSON.parse(fs.readFileSync(OWNER_FILE, 'utf8'));
+        return data.ownerName || DEFAULT_OWNER_NAME;
+    } catch (error) {
+        console.error('Error reading owner file:', error);
+        return DEFAULT_OWNER_NAME;
     }
 }
 
-function saveOwner(name) {
-    fs.writeFileSync(OWNER_FILE, JSON.stringify({ ownerName: name }, null, 2));
+/**
+ * Set new owner name with case options
+ */
+function setOwnerName(newOwnerName, options = {}) {
+    try {
+        if (!newOwnerName || typeof newOwnerName !== 'string') return false;
+        
+        const trimmedName = newOwnerName.trim();
+        if (trimmedName.length === 0 || trimmedName.length > 20) return false;
+
+        // Apply case formatting
+        const finalName = options.upperCase ? trimmedName.toUpperCase() : trimmedName;
+        
+        fs.writeFileSync(OWNER_FILE, JSON.stringify({ ownerName: finalName }, null, 2));
+        return true;
+    } catch (error) {
+        console.error('Error setting owner name:', error);
+        return false;
+    }
 }
 
-// --- Core Functions ---
-
-function getOwnerName() {
-    return readOwnerFile().ownerName || DEFAULT_OWNER_NAME;
-}
-
-function setOwnerName(newName) {
-    const validation = validateOwnerName(newName);
-    if (!validation.isValid) return { success: false, message: validation.message };
-
-    saveOwner(newName.trim());
-    return { success: true, message: `Owner name set to: ${newName.trim()}` };
-}
-
+/**
+ * Reset owner name to default
+ */
 function resetOwnerName() {
-    saveOwner(DEFAULT_OWNER_NAME);
-    return { success: true, message: `Owner name reset to default: ${DEFAULT_OWNER_NAME}` };
+    try {
+        fs.writeFileSync(OWNER_FILE, JSON.stringify({ ownerName: DEFAULT_OWNER_NAME }, null, 2));
+        return true;
+    } catch (error) {
+        console.error('Error resetting owner name:', error);
+        return false;
+    }
 }
 
+/**
+ * Validate owner name
+ */
 function validateOwnerName(name) {
-    if (!name || typeof name !== 'string' || !name.trim()) {
+    if (!name || typeof name !== 'string') {
         return { isValid: false, message: 'Owner name cannot be empty!' };
     }
-    if (name.trim().length > 20) {
+    
+    const trimmed = name.trim();
+    if (trimmed.length === 0) {
+        return { isValid: false, message: 'Owner name cannot be empty!' };
+    }
+    
+    if (trimmed.length > 20) {
         return { isValid: false, message: 'Owner name must be 1-20 characters long!' };
     }
-    if (/[<>@#\$%\^\*\\\/]/.test(name)) {
+    
+    const invalidChars = /[<>@#\$%\^\*\\\/]/;
+    if (invalidChars.test(trimmed)) {
         return { isValid: false, message: 'Owner name contains invalid characters!' };
     }
+    
     return { isValid: true, message: 'Valid owner name' };
 }
 
-function getOwnerInfo() {
-    const name = getOwnerName();
-    return {
-        name,
-        formattedName: name,
-        isDefault: name === DEFAULT_OWNER_NAME
-    };
-}
-
-function isOwnerNameMatch(name) {
-    return getOwnerName() === name;
-}
-
-function isOwnerNameMatchCaseInsensitive(name) {
-    return getOwnerName().toLowerCase() === name.toLowerCase();
-}
-
-// --- WhatsApp Command Handler ---
-
-async function handleSetOwnerCommand(sock, chatId, message, userMessage, prefix) {
-    const args = userMessage.split(' ').slice(1);
-    const newName = args.join(' ');
-    
-// --- Fake Contact Generator ---
+// Create fake contact for enhanced replies
 function createFakeContact(message) {
-    const id = message.key.participant?.split('@')[0] || message.key.remoteJid.split('@')[0];
     return {
-        key: { participants: "0@s.whatsapp.net", remoteJid: "status@broadcast", fromMe: false, id: "JUNE-MD-MENU" },
-        message: { contactMessage: { vcard: `BEGIN:VCARD\nVERSION:3.0\nN:Sy;Bot;;;\nFN:JUNE MD\nitem1.TEL;waid=${id}:${id}\nitem1.X-ABLabel:Ponsel\nEND:VCARD` } },
+        key: {
+            participants: "0@s.whatsapp.net",
+            remoteJid: "status@broadcast",
+            fromMe: false,
+            id: "JUNE-MD-MENU"
+        },
+        message: {
+            contactMessage: {
+                vcard: `BEGIN:VCARD\nVERSION:3.0\nN:Sy;Bot;;;\nFN:JUNE MD\nitem1.TEL;waid=${message.key.participant?.split('@')[0] || message.key.remoteJid.split('@')[0]}:${message.key.participant?.split('@')[0] || message.key.remoteJid.split('@')[0]}\nitem1.X-ABLabel:Ponsel\nEND:VCARD`
+            }
+        },
         participant: "0@s.whatsapp.net"
     };
 }
 
-    const fakeContact = createFakeContact(message);
-
+async function handleSetOwnerCommand(sock, chatId, senderId, message, userMessage, currentPrefix) {
+    const args = userMessage.split(' ').slice(1);
+    const input = args.join(' ');
+    const fake = createFakeContact(message);
+    
+    // Only bot owner can change owner name
     if (!message.key.fromMe) {
-        return sock.sendMessage(chatId, { text: '❌ Only bot owner can change the owner name!' }, { quoted: fakeContact });
+        await sock.sendMessage(chatId, { 
+            text: '❌ Only bot owner can change the owner name!'
+        }, { quoted: fake });
+        return;
     }
 
-    if (!newName) {
-        return sock.sendMessage(chatId, { 
-            text: `👑 Current Owner Name: *${getOwnerName()}*\n\nUsage: ${prefix}setowner <new_name>\nExample: ${prefix}setowner Supreme\nExample: ${prefix}setowner John Doe\n\nTo reset: ${prefix}setowner reset\n\n📝 Note: Case is preserved.`
-        }, { quoted: fakeContact });
+    if (!input) {
+        const current = getOwnerName();
+        await sock.sendMessage(chatId, { 
+            text: `👑 Current Owner Name: *${current}*\n\nUsage: ${currentPrefix}setowner <new_name>\nExample: ${currentPrefix}setowner Supreme\nExample: ${currentPrefix}setowner UPPER john doe\n\nTo reset: ${currentPrefix}setowner reset`
+        }, { quoted: fake });
+        return;
     }
 
-    if (newName.toLowerCase() === 'reset') {
-        const result = resetOwnerName();
-        return sock.sendMessage(chatId, { text: `✅ ${result.message}` }, { quoted: fakeContact });
+    if (input.toLowerCase() === 'reset') {
+        const success = resetOwnerName();
+        const response = success ? 
+            `✅ Owner name reset to default: *${DEFAULT_OWNER_NAME}*` : 
+            '❌ Failed to reset owner name!';
+        
+        await sock.sendMessage(chatId, { text: response }, { quoted: fake });
+        return;
     }
 
-    const result = setOwnerName(newName);
-    return sock.sendMessage(chatId, { 
-        text: result.success ? `✅ ${result.message}` : `❌ ${result.message}` 
-    }, { quoted: fakeContact });
+    // Check for uppercase option
+    let nameToSet = input;
+    let useUpperCase = false;
+    
+    if (input.toLowerCase().startsWith('upper ')) {
+        useUpperCase = true;
+        nameToSet = input.substring(6); // Remove "upper " prefix
+    }
+
+    const validation = validateOwnerName(nameToSet);
+    if (!validation.isValid) {
+        await sock.sendMessage(chatId, { text: `❌ ${validation.message}` }, { quoted: fake });
+        return;
+    }
+
+    const success = setOwnerName(nameToSet, { upperCase: useUpperCase });
+    const newName = getOwnerName();
+    
+    const response = success ? 
+        `✅ Owner name successfully set to: *${newName}*${useUpperCase ? ' (UPPERCASE)' : ''}` : 
+        '❌ Failed to set owner name!';
+    
+    await sock.sendMessage(chatId, { text: response }, { quoted: fake });
 }
 
+/**
+ * Get owner info
+ */
+function getOwnerInfo() {
+    const ownerName = getOwnerName();
+    return {
+        name: ownerName,
+        formattedName: ownerName,
+        isDefault: ownerName === DEFAULT_OWNER_NAME
+    };
+}
 
-// --- Exports ---
+/**
+ * Check if a given name matches the current owner name
+ */
+function isOwnerNameMatch(nameToCheck, caseSensitive = true) {
+    const currentOwner = getOwnerName();
+    return caseSensitive ? 
+        currentOwner === nameToCheck : 
+        currentOwner.toLowerCase() === nameToCheck.toLowerCase();
+}
+
 module.exports = {
     getOwnerName,
     setOwnerName,
@@ -122,6 +192,5 @@ module.exports = {
     validateOwnerName,
     getOwnerInfo,
     isOwnerNameMatch,
-    isOwnerNameMatchCaseInsensitive,
     DEFAULT_OWNER_NAME
 };
