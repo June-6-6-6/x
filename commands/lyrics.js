@@ -62,7 +62,7 @@ async function lyricsCommand(sock, chatId, songTitle, message) {
                             mediaType: 1,
                             thumbnailUrl: artworkUrl,
                             sourceUrl: artworkUrl,
-                            renderLargerThumbnail: true,
+                            renderLargerThumbnail: false,
                             showAdAttribution: false
                         }
                     }
