@@ -3,8 +3,24 @@ const fs = require('fs');
 const path = require('path');
 
 async function ttsCommand(sock, chatId, text, message, language = 'en') {
+    // If no text provided, try to get it from quoted or mentioned message
     if (!text) {
-        await sock.sendMessage(chatId, { text: 'Please provide the text for TTS conversion.' });
+        if (message?.message?.extendedTextMessage?.contextInfo?.quotedMessage) {
+            // Extract text from quoted message
+            const quotedMsg = message.message.extendedTextMessage.contextInfo.quotedMessage;
+            if (quotedMsg.conversation) {
+                text = quotedMsg.conversation;
+            } else if (quotedMsg.extendedTextMessage?.text) {
+                text = quotedMsg.extendedTextMessage.text;
+            }
+        } else if (message?.message?.extendedTextMessage?.text) {
+            // Extract text from mentioned message
+            text = message.message.extendedTextMessage.text;
+        }
+    }
+
+    if (!text) {
+        await sock.sendMessage(chatId, { text: 'Please provide the text for TTS conversion or reply/mention a message.' });
         return;
     }
 
