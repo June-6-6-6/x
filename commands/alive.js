@@ -42,10 +42,10 @@ async function aliveCommand(sock, chatId, message) {
         const hostName = detectPlatform();
         
         const message1 = `ℹ️ *BOT STATUS* 
-⏰ *Uptime:* ${formattedUptime}
-🎲 *platform* ${hostName}
-🔄 *Version:* ${settings.version || 'undefined !'}
-📱 *Powered by:* ${settings.botName || 'WhatsApp Bot'}
+⏰ *UPTIME:* ${formattedUptime}
+🎲 *PLATFORM:* ${hostName}
+🔄 *VERSION:* ${settings.version || 'undefined !'}
+📱 *POWERED BY:* ${settings.botName || 'WhatsApp Bot'}
 
 🔵 Use *menu* to see all available commands`;
 
