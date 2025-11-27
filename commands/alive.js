@@ -1,5 +1,21 @@
 const settings = require("../settings");
 
+    // Detect host/platform
+    const detectPlatform = () => {
+      if (process.env.DYNO) return "Heroku";
+      if (process.env.RENDER) return "Render";
+      if (process.env.PREFIX && process.env.PREFIX.includes("termux")) return "Termux";
+      if (process.env.PORTS && process.env.CYPHERX_HOST_ID) return "CypherX Platform";
+      if (process.env.P_SERVER_UUID) return "Panel";
+      if (process.env.LXC) return "Linux Container (LXC)";
+      switch (os.platform()) {
+        case "win32": return "Windows";
+        case "darwin": return "macOS";
+        case "linux": return "Linux";
+        default: return "Unknown";
+      }
+    };
+
 function formatUptime(uptime) {
     const seconds = Math.floor(uptime / 1000);
     const days = Math.floor(seconds / (24 * 60 * 60));
@@ -23,9 +39,11 @@ async function aliveCommand(sock, chatId, message) {
     try {
         const uptime = Date.now() - botStartTime;
         const formattedUptime = formatUptime(uptime);
+        const hostName = detectPlatform();
         
         const message1 = `ℹ️ *BOT STATUS* 
 ⏰ *Uptime:* ${formattedUptime}
+🎲 *platform* ${hostName}
 🔄 *Version:* ${settings.version || 'undefined !'}
 📱 *Powered by:* ${settings.botName || 'WhatsApp Bot'}
 
