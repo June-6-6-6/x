@@ -46,7 +46,7 @@ const { rmSync } = require('fs')
  * @param {boolean} [isError=false] - Whether to use console.error.
  */
 function log(message, color = 'white', isError = false) {
-    const prefix = chalk.magenta.bold('[ JUNE - MD ]');
+    const prefix = chalk.magenta.bold('[ JUNE - X ]');
     const logFunc = isError ? console.error : console.log;
     const coloredMessage = chalk[color](message);
     
