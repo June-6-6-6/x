@@ -96,8 +96,6 @@ async function truthCommand(sock, message, chatId) {
   } catch (error) {
     console.error('Error in truth command:', error);
     
-e you ever been caught lying?"
-    ];
     
     const fallbackTruth = fallbackTruths[Math.floor(Math.random() * fallbackTruths.length)];
     const fallbackImage = 'https://i.ibb.co/305yt26/bf84f20635dedd5dde31e7e5b6983ae9.jpg';
