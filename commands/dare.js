@@ -15,7 +15,7 @@ async function dareCommand(sock, chatId, message) {
         const dareMessage = json.result;
 
         // Fetch a random dare image (using Unsplash API for example)
-        const imageRes = await fetch('https://source.unsplash.com/600x600/?challenge,dare,action,fun');
+        const imageRes = await fetch('https://i.ibb.co/305yt26/bf84f20635dedd5dde31e7e5b6983ae9.jpg');
         const imageBuffer = await imageRes.buffer();
 
         // Send the dare message with image
