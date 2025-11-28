@@ -6,6 +6,263 @@
  * * the hidden repo on every startup while ensuring persistence files (session and settings) 
  * * are protected from being overwritten.
  */
+const express = require("express");
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.get("/", (req, res) => {
+  const uptimeSeconds = process.uptime();
+  const days = Math.floor(uptimeSeconds / 86400);
+  const hours = Math.floor((uptimeSeconds % 86400) / 3600);
+  const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+  const seconds = Math.floor(uptimeSeconds % 60);
+  
+  // Format uptime with proper pluralization
+  const uptimeParts = [];
+  if (days > 0) uptimeParts.push(`${days} day${days !== 1 ? 's' : ''}`);
+  if (hours > 0) uptimeParts.push(`${hours} hour${hours !== 1 ? 's' : ''}`);
+  if (minutes > 0) uptimeParts.push(`${minutes} minute${minutes !== 1 ? 's' : ''}`);
+  if (seconds > 0 || uptimeParts.length === 0) uptimeParts.push(`${seconds} second${seconds !== 1 ? 's' : ''}`);
+  
+  const uptimeFormatted = uptimeParts.join(', ');
+
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Bot Status</title>
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        
+        body {
+          background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+          color: #ffffff;
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+          position: relative;
+        }
+
+        .container {
+          background: rgba(255, 255, 255, 0.05);
+          backdrop-filter: blur(10px);
+          border-radius: 20px;
+          padding: 40px 30px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+          max-width: 500px;
+          width: 100%;
+          text-align: center;
+          animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        h1 {
+          background: linear-gradient(45deg, #00ffcc, #0099ff);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          font-size: 3em;
+          margin-bottom: 30px;
+          font-weight: 700;
+          text-shadow: 0 0 30px rgba(0, 255, 204, 0.3);
+          letter-spacing: 1px;
+        }
+
+        .status-card {
+          background: rgba(255, 255, 255, 0.08);
+          border-radius: 15px;
+          padding: 25px;
+          margin: 20px 0;
+          border-left: 4px solid #00ffcc;
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .status-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 10px 25px rgba(0, 255, 204, 0.2);
+        }
+
+        .label {
+          color: #8899aa;
+          font-size: 1em;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin-bottom: 8px;
+          display: block;
+        }
+
+        .uptime {
+          color: #ffcc00;
+          font-size: 1.8em;
+          font-weight: 700;
+          text-shadow: 0 0 20px rgba(255, 204, 0, 0.4);
+          font-family: 'Courier New', monospace;
+        }
+
+        .status {
+          color: #00ff8c;
+          font-size: 1.8em;
+          font-weight: 700;
+          text-shadow: 0 0 20px rgba(0, 255, 140, 0.4);
+          position: relative;
+        }
+
+        .status::after {
+          content: '';
+          position: absolute;
+          width: 12px;
+          height: 12px;
+          background: #00ff8c;
+          border-radius: 50%;
+          top: 50%;
+          right: -20px;
+          transform: translateY(-50%);
+          animation: pulse 2s infinite;
+          box-shadow: 0 0 15px #00ff8c;
+        }
+
+        @keyframes pulse {
+          0% {
+            transform: translateY(-50%) scale(1);
+            opacity: 1;
+          }
+          50% {
+            transform: translateY(-50%) scale(1.2);
+            opacity: 0.7;
+          }
+          100% {
+            transform: translateY(-50%) scale(1);
+            opacity: 1;
+          }
+        }
+
+        .footer {
+          margin-top: 40px;
+          padding: 20px;
+          color: #8899aa;
+          font-size: 1em;
+          text-align: center;
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          width: 100%;
+          max-width: 500px;
+        }
+
+        .footer-heart {
+          color: #ff3366;
+          animation: heartbeat 1.5s ease-in-out infinite;
+          display: inline-block;
+        }
+
+        @keyframes heartbeat {
+          0%, 100% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.1);
+          }
+        }
+
+        .glow {
+          position: absolute;
+          width: 200px;
+          height: 200px;
+          background: radial-gradient(circle, rgba(0, 255, 204, 0.1) 0%, transparent 70%);
+          border-radius: 50%;
+          top: 10%;
+          left: 10%;
+          z-index: -1;
+          animation: float 6s ease-in-out infinite;
+        }
+
+        .glow-2 {
+          position: absolute;
+          width: 150px;
+          height: 150px;
+          background: radial-gradient(circle, rgba(255, 204, 0, 0.08) 0%, transparent 70%);
+          border-radius: 50%;
+          bottom: 15%;
+          right: 10%;
+          z-index: -1;
+          animation: float 8s ease-in-out infinite reverse;
+        }
+
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0px) rotate(0deg);
+          }
+          50% {
+            transform: translateY(-20px) rotate(180deg);
+          }
+        }
+
+        @media (max-width: 768px) {
+          .container {
+            padding: 30px 20px;
+            margin: 10px;
+          }
+          
+          h1 {
+            font-size: 2.5em;
+          }
+          
+          .uptime, .status {
+            font-size: 1.5em;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="glow"></div>
+      <div class="glow-2"></div>
+      
+      <div class="container">
+        <h1>JUNE-X</h1>
+        
+        <div class="status-card">
+          <span class="label">Bot Uptime</span>
+          <div class="uptime">${uptimeFormatted}</div>
+        </div>
+        
+        <div class="status-card">
+          <span class="label">Status</span>
+          <div class="status">Online</div>
+        </div>
+      </div>
+      
+      <div class="footer">
+        Made with <span class="footer-heart">💙</span> by Supreme
+      </div>
+    </body>
+    </html>
+  `);
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+
 
 // --- Environment Setup ---
 const config = require('./config');
