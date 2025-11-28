@@ -6,97 +6,67 @@ const webp = require('webp-converter');
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 
 const tempDir = './temp';
+if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
 
-// Ensure temp directory exists
-if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir, { recursive: true });
-}
-
-const scheduleFileDeletion = (filePath) => {
+/**
+ * Schedule deletion of a file after a delay
+ * @param {string} filePath - Path of the file to delete
+ * @param {number} delay - Delay in ms before deletion
+ */
+const scheduleFileDeletion = (filePath, delay = 10000) => {
     setTimeout(async () => {
         try {
-            if (await fse.pathExists(filePath)) {
-                await fse.remove(filePath);
-                console.log(`File deleted: ${filePath}`);
-            }
+            await fse.remove(filePath);
+            console.log(`✅ Deleted: ${filePath}`);
         } catch (error) {
-            console.error(`Failed to delete file ${filePath}:`, error);
+            console.error(`❌ Failed to delete ${filePath}:`, error);
         }
-    }, 10000); // 10 seconds
+    }, delay);
 };
 
+/**
+ * Convert a WhatsApp sticker (WEBP) to PNG and send it back
+ * @param {object} sock - Baileys socket instance
+ * @param {object} quotedMessage - Quoted message containing sticker
+ * @param {string} chatId - Chat ID to send the converted image
+ */
 const convertStickerToImage = async (sock, quotedMessage, chatId) => {
-    let stickerFilePath;
-    let outputImagePath;
-
     try {
-        // Check if quoted message exists and has sticker
-        if (!quotedMessage || !quotedMessage.stickerMessage) {
-            await sock.sendMessage(chatId, { text: 'Reply to a sticker with .simage to convert it.' });
+        const stickerMessage = quotedMessage?.stickerMessage;
+        if (!stickerMessage) {
+            await sock.sendMessage(chatId, { text: '⚠️ Reply to a sticker with .simage to convert it.' });
             return;
         }
 
         const timestamp = Date.now();
-        stickerFilePath = path.join(tempDir, `sticker_${timestamp}.webp`);
-        outputImagePath = path.join(tempDir, `converted_image_${timestamp}.png`);
+        const stickerFilePath = path.join(tempDir, `sticker_${timestamp}.webp`);
+        const outputImagePath = path.join(tempDir, `converted_${timestamp}.png`);
 
         // Download sticker
-        const stickerMessage = quotedMessage.stickerMessage;
         const stream = await downloadContentFromMessage(stickerMessage, 'sticker');
-        
-        let buffer = Buffer.from([]);
-        for await (const chunk of stream) {
-            buffer = Buffer.concat([buffer, chunk]);
-        }
-
-        // Check if buffer has data
-        if (buffer.length === 0) {
-            throw new Error('Failed to download sticker: empty buffer');
-        }
+        let buffer = Buffer.alloc(0);
+        for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
 
         await fsPromises.writeFile(stickerFilePath, buffer);
 
-        // Convert WEBP → PNG using webp-converter with promise-based approach
-        await new Promise((resolve, reject) => {
-            webp.dwebp(stickerFilePath, outputImagePath, "-o", (status, error) => {
-                if (error || status !== '0') {
-                    reject(new Error(`Conversion failed: ${error || status}`));
-                } else {
-                    resolve();
-                }
-            });
-        });
-
-        // Check if output file was created
-        if (!fs.existsSync(outputImagePath)) {
-            throw new Error('Conversion failed: output file not found');
-        }
+        // Convert WEBP → PNG
+        const result = await webp.dwebp(stickerFilePath, outputImagePath, "-o");
+        console.log("WEBP → PNG conversion result:", result);
 
         // Read and send converted image
         const imageBuffer = await fsPromises.readFile(outputImagePath);
-        
         await sock.sendMessage(chatId, { 
             image: imageBuffer, 
-            caption: 'Here is the converted image!' 
+            caption: '✅ Sticker converted to image!' 
         });
 
-        console.log(`Successfully converted sticker to image for chat ${chatId}`);
+        // Cleanup
+        scheduleFileDeletion(stickerFilePath);
+        scheduleFileDeletion(outputImagePath);
 
     } catch (error) {
-        console.error('Error converting sticker to image:', error);
-        
-        let errorMessage = 'An error occurred while converting the sticker.';
-        if (error.message.includes('Conversion failed')) {
-            errorMessage = 'Failed to convert the sticker. It might be an animated sticker which is not supported.';
-        } else if (error.message.includes('empty buffer')) {
-            errorMessage = 'Failed to download the sticker. Please try again.';
-        }
-        
-        await sock.sendMessage(chatId, { text: errorMessage });
-    } finally {
-        // Clean up temporary files
-        if (stickerFilePath) scheduleFileDeletion(stickerFilePath);
-        if (outputImagePath) scheduleFileDeletion(outputImagePath);
+        console.error('❌ Error converting sticker:', error);
+        await sock.sendMessage(chatId, { text: 'An error occurred while converting the sticker.' });
     }
 };
 
