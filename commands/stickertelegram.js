@@ -30,7 +30,7 @@ async function stickerTelegramCommand(sock, chatId, msg) {
         }
 
         const packName = args[0].replace("https://t.me/addstickers/", "");
-        const botToken = settings.telegramtoken || '7801479976:AAGuPL0a7kXXBYz6XUSR_ll2SR5V_W6oHl4';
+        const botToken = settings.telegram_token || '7801479976:AAGuPL0a7kXXBYz6XUSR_ll2SR5V_W6oHl4';
 
         // Fetch sticker pack metadata
         const response = await fetch(
@@ -64,8 +64,8 @@ async function stickerTelegramCommand(sock, chatId, msg) {
                 const fileUrl = `https://api.telegram.org/file/bot${botToken}/${fileData.result.file_path}`;
                 const imageBuffer = await (await fetch(fileUrl)).buffer();
 
-                const tempInput = path.join(tmpDir, `tempinput${Date.now()}_${i}`);
-                const tempOutput = path.join(tmpDir, `sticker${Date.now()}_${i}.webp`);
+                const tempInput = path.join(tmpDir, `temp_input_${Date.now()}_${i}`);
+                const tempOutput = path.join(tmpDir, `sticker_${Date.now()}_${i}.webp`);
                 fs.writeFileSync(tempInput, imageBuffer);
 
                 const isAnimated = sticker.is_animated || sticker.is_video;
