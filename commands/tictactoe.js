@@ -3,22 +3,70 @@ const TicTacToe = require('../lib/tictactoe');
 // Store games globally
 const games = {};
 
+// Emoji mapping for rendering the board
+const emojiMap = {
+    'X': '❎',
+    'O': '⭕',
+    '1': '1️⃣',
+    '2': '2️⃣',
+    '3': '3️⃣',
+    '4': '4️⃣',
+    '5': '5️⃣',
+    '6': '6️⃣',
+    '7': '7️⃣',
+    '8': '8️⃣',
+    '9': '9️⃣',
+};
+
+/**
+ * Render the TicTacToe board with emojis
+ * @param {TicTacToe} game
+ * @returns {string}
+ */
+function renderBoard(game) {
+    const arr = game.render().map(v => emojiMap[v]);
+    return `${arr.slice(0, 3).join('')}\n${arr.slice(3, 6).join('')}\n${arr.slice(6).join('')}`;
+}
+
+/**
+ * Create a new game room
+ * @param {string} chatId
+ * @param {string} senderId
+ * @param {string} [name]
+ * @returns {object} room
+ */
+function createRoom(chatId, senderId, name) {
+    const room = {
+        id: `tictactoe-${Date.now()}`,
+        x: chatId,
+        o: '',
+        game: new TicTacToe(senderId, 'o'),
+        state: 'WAITING',
+        name: name || null,
+    };
+    games[room.id] = room;
+    return room;
+}
+
+/**
+ * Start or join a TicTacToe game
+ */
 async function tictactoeCommand(sock, chatId, senderId, text) {
     try {
-        // Check if player is already in a game
-        if (Object.values(games).find(room => 
-            room.id.startsWith('tictactoe') && 
+        // Prevent player from joining multiple games
+        const activeGame = Object.values(games).find(room =>
+            room.id.startsWith('tictactoe') &&
             [room.game.playerX, room.game.playerO].includes(senderId)
-        )) {
-            await sock.sendMessage(chatId, { 
-                text: '❌ You are still in a game. Type *surrender* to quit.' 
+        );
+        if (activeGame) {
+            return sock.sendMessage(chatId, {
+                text: '❌ You are still in a game. Type *surrender* to quit.'
             });
-            return;
         }
 
-        // Look for existing room
-        let room = Object.values(games).find(room => 
-            room.state === 'WAITING' && 
+        // Look for existing waiting room
+        let room = Object.values(games).find(room =>
+            room.state === 'WAITING' &&
             (text ? room.name === text : true)
         );
 
@@ -28,28 +76,12 @@ async function tictactoeCommand(sock, chatId, senderId, text) {
             room.game.playerO = senderId;
             room.state = 'PLAYING';
 
-            const arr = room.game.render().map(v => ({
-                'X': '❎',
-                'O': '⭕',
-                '1': '1️⃣',
-                '2': '2️⃣',
-                '3': '3️⃣',
-                '4': '4️⃣',
-                '5': '5️⃣',
-                '6': '6️⃣',
-                '7': '7️⃣',
-                '8': '8️⃣',
-                '9': '9️⃣',
-            }[v]));
-
             const str = `
 🎮 *TicTacToe Game Started!*
 
 Waiting for @${room.game.currentTurn.split('@')[0]} to play...
 
-${arr.slice(0, 3).join('')}
-${arr.slice(3, 6).join('')}
-${arr.slice(6).join('')}
+${renderBoard(room.game)}
 
 ▢ *Room ID:* ${room.id}
 ▢ *Rules:*
@@ -58,123 +90,83 @@ ${arr.slice(6).join('')}
 • Type *surrender* to give up
 `;
 
-            // Send message only once to the group
-            await sock.sendMessage(chatId, { 
+            await sock.sendMessage(chatId, {
                 text: str,
                 mentions: [room.game.currentTurn, room.game.playerX, room.game.playerO]
             });
 
         } else {
             // Create new room
-            room = {
-                id: 'tictactoe-' + (+new Date),
-                x: chatId,
-                o: '',
-                game: new TicTacToe(senderId, 'o'),
-                state: 'WAITING'
-            };
+            room = createRoom(chatId, senderId, text);
 
-            if (text) room.name = text;
-
-            await sock.sendMessage(chatId, { 
+            await sock.sendMessage(chatId, {
                 text: `⏳ *Waiting for opponent*\nType *.ttt ${text || ''}* to join!`
             });
-
-            games[room.id] = room;
         }
 
     } catch (error) {
         console.error('Error in tictactoe command:', error);
-        await sock.sendMessage(chatId, { 
-            text: '❌ Error starting game. Please try again.' 
+        await sock.sendMessage(chatId, {
+            text: '❌ Error starting game. Please try again.'
         });
     }
 }
 
+/**
+ * Handle TicTacToe moves
+ */
 async function handleTicTacToeMove(sock, chatId, senderId, text) {
     try {
-        // Find player's game
-        const room = Object.values(games).find(room => 
-            room.id.startsWith('tictactoe') && 
-            [room.game.playerX, room.game.playerO].includes(senderId) && 
+        const room = Object.values(games).find(room =>
+            room.id.startsWith('tictactoe') &&
+            [room.game.playerX, room.game.playerO].includes(senderId) &&
             room.state === 'PLAYING'
         );
 
         if (!room) return;
 
         const isSurrender = /^(surrender|give up)$/i.test(text);
-        
         if (!isSurrender && !/^[1-9]$/.test(text)) return;
 
-        // Allow surrender at any time, not just during player's turn
+        // Enforce turn order unless surrender
         if (senderId !== room.game.currentTurn && !isSurrender) {
-            await sock.sendMessage(chatId, { 
-                text: '❌ Not your turn!' 
-            });
-            return;
+            return sock.sendMessage(chatId, { text: '❌ Not your turn!' });
         }
 
-        let ok = isSurrender ? true : room.game.turn(
+        const moveOk = isSurrender ? true : room.game.turn(
             senderId === room.game.playerO,
             parseInt(text) - 1
         );
 
-        if (!ok) {
-            await sock.sendMessage(chatId, { 
-                text: '❌ Invalid move! That position is already taken.' 
-            });
-            return;
+        if (!moveOk) {
+            return sock.sendMessage(chatId, { text: '❌ Invalid move! That position is already taken.' });
         }
 
         let winner = room.game.winner;
-        let isTie = room.game.turns === 9;
-
-        const arr = room.game.render().map(v => ({
-            'X': '❎',
-            'O': '⭕',
-            '1': '1️⃣',
-            '2': '2️⃣',
-            '3': '3️⃣',
-            '4': '4️⃣',
-            '5': '5️⃣',
-            '6': '6️⃣',
-            '7': '7️⃣',
-            '8': '8️⃣',
-            '9': '9️⃣',
-        }[v]));
+        const isTie = room.game.turns === 9;
 
         if (isSurrender) {
-            // Set the winner to the opponent of the surrendering player
             winner = senderId === room.game.playerX ? room.game.playerO : room.game.playerX;
-            
-            // Send a surrender message
-            await sock.sendMessage(chatId, { 
+            await sock.sendMessage(chatId, {
                 text: `🏳️ @${senderId.split('@')[0]} has surrendered! @${winner.split('@')[0]} wins the game!`,
                 mentions: [senderId, winner]
             });
-            
-            // Delete the game immediately after surrender
             delete games[room.id];
             return;
         }
 
-        let gameStatus;
-        if (winner) {
-            gameStatus = `🎉 @${winner.split('@')[0]} wins the game!`;
-        } else if (isTie) {
-            gameStatus = `🤝 Game ended in a draw!`;
-        } else {
-            gameStatus = `🎲 Turn: @${room.game.currentTurn.split('@')[0]} (${senderId === room.game.playerX ? '❎' : '⭕'})`;
-        }
+        const gameStatus = winner
+            ? `🎉 @${winner.split('@')[0]} wins the game!`
+            : isTie
+                ? `🤝 Game ended in a draw!`
+                : `🎲 Turn: @${room.game.currentTurn.split('@')[0]} (${senderId === room.game.playerX ? '❎' : '⭕'})`;
 
         const str = `
 🎮 *TicTacToe Game*
 
 ${gameStatus}
 
-${arr.slice(0, 3).join('')}
-${arr.slice(3, 6).join('')}
-${arr.slice(6).join('')}
+${renderBoard(room.game)}
 
 ▢ Player ❎: @${room.game.playerX.split('@')[0]}
 ▢ Player ⭕: @${room.game.playerO.split('@')[0]}
@@ -183,21 +175,15 @@ ${!winner && !isTie ? '• Type a number (1-9) to make your move\n• Type *surr
 `;
 
         const mentions = [
-            room.game.playerX, 
+            room.game.playerX,
             room.game.playerO,
             ...(winner ? [winner] : [room.game.currentTurn])
         ];
 
-        await sock.sendMessage(room.x, { 
-            text: str,
-            mentions: mentions
-        });
-
+        // Send updates to both chats
+        await sock.sendMessage(room.x, { text: str, mentions });
         if (room.x !== room.o) {
-            await sock.sendMessage(room.o, { 
-                text: str,
-                mentions: mentions
-            });
+            await sock.sendMessage(room.o, { text: str, mentions });
         }
 
         if (winner || isTie) {
