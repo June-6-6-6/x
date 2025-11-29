@@ -74,9 +74,9 @@ async function urlCommand(sock, chatId, message) {
             return;
         }
 
-        const tempDir = path.join(__dirname, '../temp'); // fixed __dirname
+        const tempDir = path.join(__dirname, '../temp');
         if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
-        const tempPath = path.join(tempDir, `${Date.now()}${media.ext}`); // fixed template string
+        const tempPath = path.join(tempDir, `${Date.now()}${media.ext}`);
         fs.writeFileSync(tempPath, media.buffer);
 
         let url = '';
@@ -101,15 +101,20 @@ async function urlCommand(sock, chatId, message) {
             return;
         }
 
-        // Send with interactive buttons
-        await sock.sendMessage(chatId, {
+        // ✅ Simple buttons (light Baileys)
+        const buttons = [
+            { buttonId: `copy_${Date.now()}`, buttonText: { displayText: "📋 Copy URL" }, type: 1 },
+            { buttonId: `open_${Date.now()}`, buttonText: { displayText: "🌐 Open Link" }, type: 1 }
+        ];
+
+        const buttonMessage = {
             text: `Your Url:\n${url}`,
-            templateButtons: [
-                { index: 1, urlButton: { displayText: "🌐 Open Link", url } },
-                { index: 2, quickReplyButton: { displayText: "📋 Copy URL", id: `copy_${Date.now()}` } }
-            ],
+            footer: 'Choose an option below',
+            buttons,
             headerType: 1
-        }, { quoted: message });
+        };
+
+        await sock.sendMessage(chatId, buttonMessage, { quoted: message });
 
     } catch (error) {
         console.error('[URL] error:', error?.message || error);
