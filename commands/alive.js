@@ -100,8 +100,4 @@ async function aliveCommand(sock, chatId, message) {
 
 // Export modules
 module.exports = {
-  aliveCommand,
-  detectPlatform,
-  formatUptime,
-  createFakeContact
-};
+  aliveCommand };
