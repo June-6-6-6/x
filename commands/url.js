@@ -103,7 +103,7 @@ async function urlCommand(sock, chatId, message) {
 
         // Send with interactive buttons
         await sock.sendMessage(chatId, {
-            text: `Your Url:\n${url}\n\n> 🏂June md urls`,
+            text: `Your Url:\n${url}`,
             templateButtons: [
                 { index: 1, urlButton: { displayText: "🌐 Open Link", url } },
                 { index: 2, quickReplyButton: { displayText: "📋 Copy URL", id: `copy_${Date.now()}` } }
