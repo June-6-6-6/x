@@ -399,22 +399,22 @@ async function sendWelcomeMessage(XeonBotInc) {
     // CRITICAL: Wait 10 seconds for the connection to fully stabilize
     await delay(10000); 
 
- 
-    // Detect host/platform
-    const detectPlatform = () => {
-      if (process.env.DYNO) return "Heroku";
-      if (process.env.RENDER) return "Render";
-      if (process.env.PREFIX && process.env.PREFIX.includes("termux")) return "Termux";
-      if (process.env.PORTS && process.env.CYPHERX_HOST_ID) return "CypherX Platform";
-      if (process.env.P_SERVER_UUID) return "Panel";
-      if (process.env.LXC) return "Linux Container (LXC)";
-      switch (os.platform()) {
-        case "win32": return "Windows";
-        case "darwin": return "macOS";
-        case "linux": return "Linux";
-        default: return "Unknown";
-      }
-    };
+    //detectPlatform
+ const detectPlatform = () => {
+  if (process.env.DYNO) return "☁️ Heroku";
+  if (process.env.RENDER) return "⚡ Render";
+  if (process.env.PREFIX && process.env.PREFIX.includes("termux")) return "📱 Termux";
+  if (process.env.PORTS && process.env.CYPHERX_HOST_ID) return "🌀 CypherX Platform";
+  if (process.env.P_SERVER_UUID) return "🖥️ Panel";
+  if (process.env.LXC) return "📦 Linux Container (LXC)";
+  
+  switch (os.platform()) {
+    case "win32": return "🪟 Windows";
+    case "darwin": return "🍎 macOS";
+    case "linux": return "🐧 Linux";
+    default: return "❓ Unknown";
+  }
+};
 
     const hostName = detectPlatform();
     
