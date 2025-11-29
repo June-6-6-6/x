@@ -1,7 +1,21 @@
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 const fs = require('fs');
 const path = require('path');
-const { UploadFileUgu, TelegraPh } = require('../lib/uploader');
+const axios = require('axios');
+const FormData = require('form-data');
+const { TelegraPh } = require('../lib/uploader');
+
+// helper: upload to Catbox
+async function UploadFileCatbox(filePath) {
+    const form = new FormData();
+    form.append("reqtype", "fileupload");
+    form.append("fileToUpload", fs.createReadStream(filePath));
+
+    const res = await axios.post("https://catbox.moe/user/api.php", form, {
+        headers: form.getHeaders()
+    });
+    return res.data; // permanent URL
+}
 
 async function getMediaBufferAndExt(message) {
     const m = message.message || {};
@@ -21,7 +35,6 @@ async function getMediaBufferAndExt(message) {
         const stream = await downloadContentFromMessage(m.audioMessage, 'audio');
         const chunks = [];
         for await (const chunk of stream) chunks.push(chunk);
-        // default mp3 for voice/ptt may be opus; still use .mp3 generically
         return { buffer: Buffer.concat(chunks), ext: '.mp3' };
     }
     if (m.documentMessage) {
@@ -49,10 +62,10 @@ async function getQuotedMediaBufferAndExt(message) {
 
 async function urlCommand(sock, chatId, message) {
     try {
-                await sock.sendMessage(chatId, {
+        await sock.sendMessage(chatId, {
             react: { text: '🖇️', key: message.key }
         });
-        // Prefer current message media, else quoted media
+
         let media = await getMediaBufferAndExt(message);
         if (!media) media = await getQuotedMediaBufferAndExt(message);
 
@@ -69,17 +82,16 @@ async function urlCommand(sock, chatId, message) {
         let url = '';
         try {
             if (media.ext === '.jpg' || media.ext === '.png' || media.ext === '.webp') {
-                // Try TelegraPh for images/webp first (fast, simple)
+                // Try TelegraPh first (permanent for images/webp)
                 try {
                     url = await TelegraPh(tempPath);
                 } catch {
-                    // Fallback to Uguu for any file type
-                    const res = await UploadFileUgu(tempPath);
-                    url = typeof res === 'string' ? res : (res.url || res.url_full || JSON.stringify(res));
+                    // Fallback to Catbox (permanent for any file)
+                    url = await UploadFileCatbox(tempPath);
                 }
             } else {
-                const res = await UploadFileUgu(tempPath);
-                url = typeof res === 'string' ? res : (res.url || res.url_full || JSON.stringify(res));
+                // Non-image → Catbox directly
+                url = await UploadFileCatbox(tempPath);
             }
         } finally {
             setTimeout(() => {
@@ -100,5 +112,3 @@ async function urlCommand(sock, chatId, message) {
 }
 
 module.exports = urlCommand;
-
-
