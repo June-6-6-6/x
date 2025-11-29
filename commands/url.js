@@ -5,20 +5,25 @@ const axios = require('axios');
 const FormData = require('form-data');
 const { TelegraPh } = require('../lib/uploader');
 
-// 🔹 Upload to Catbox
+// =======================
+// Helpers
+// =======================
+
+// Upload to Catbox (permanent for any file)
 async function uploadToCatbox(filePath) {
     const form = new FormData();
     form.append("reqtype", "fileupload");
     form.append("fileToUpload", fs.createReadStream(filePath));
 
-    const { data } = await axios.post("https://catbox.moe/user/api.php", form, {
+    const res = await axios.post("https://catbox.moe/user/api.php", form, {
         headers: form.getHeaders()
     });
-    return data; // permanent URL
+
+    return res.data; // permanent URL
 }
 
-// 🔹 Extract buffer + extension from message
-async function getMediaBufferAndExt(message) {
+// Extract buffer + extension from different media types
+async function extractMedia(message) {
     const m = message.message || {};
 
     const handlers = {
@@ -40,43 +45,60 @@ async function getMediaBufferAndExt(message) {
                 const fileName = m.documentMessage.fileName || 'file.bin';
                 return { buffer: Buffer.concat(chunks), ext: path.extname(fileName) || '.bin' };
             }
+
             return { buffer: Buffer.concat(chunks), ext };
         }
     }
+
     return null;
 }
 
-// 🔹 Handle quoted media
-async function getQuotedMediaBufferAndExt(message) {
+// Extract quoted media (reply case)
+async function extractQuotedMedia(message) {
     const quoted = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-    return quoted ? getMediaBufferAndExt({ message: quoted }) : null;
+    if (!quoted) return null;
+    return extractMedia({ message: quoted });
 }
 
-// 🔹 Main command
+// =======================
+// Main Command
+// =======================
 async function urlCommand(sock, chatId, message) {
     try {
-        await sock.sendMessage(chatId, { react: { text: '🖇️', key: message.key } });
+        // React to message
+        await sock.sendMessage(chatId, { react: { text: '🔺', key: message.key } });
 
-        let media = await getMediaBufferAndExt(message) || await getQuotedMediaBufferAndExt(message);
+        let media = await extractMedia(message) || await extractQuotedMedia(message);
+
         if (!media) {
-            return sock.sendMessage(chatId, { text: 'Send or reply to a media (image, video, audio, sticker, document) to get a URL.' }, { quoted: message });
+            return sock.sendMessage(
+                chatId,
+                { text: 'Send or reply to a media (image, video, audio, sticker, document) to get a URL.' },
+                { quoted: message }
+            );
         }
 
-        // temp file handling
+        // Temp file handling
         const tempDir = path.join(__dirname, '../temp');
         if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
         const tempPath = path.join(tempDir, `${Date.now()}${media.ext}`);
         fs.writeFileSync(tempPath, media.buffer);
 
         let url;
         try {
+            // Prefer TelegraPh for images/webp
             if (['.jpg', '.png', '.webp'].includes(media.ext)) {
-                url = await TelegraPh(tempPath).catch(() => uploadToCatbox(tempPath));
+                try {
+                    url = await TelegraPh(tempPath);
+                } catch {
+                    url = await uploadToCatbox(tempPath);
+                }
             } else {
                 url = await uploadToCatbox(tempPath);
             }
         } finally {
-            // cleanup
+            // Cleanup temp file
             setTimeout(() => {
                 if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
             }, 2000);
@@ -86,34 +108,15 @@ async function urlCommand(sock, chatId, message) {
             return sock.sendMessage(chatId, { text: 'Failed to upload media.' }, { quoted: message });
         }
 
-        // 🔹 Interactive message with copy + open buttons
-        await sock.sendMessage(chatId, {
-            interactiveMessage: {
-                title: "Your URL",
-                footer: "t.me/supremeLord",
-                body: { text: url },
-                buttons: [
-                    {
-                        name: "cta_copy",
-                        buttonParamsJson: JSON.stringify({
-                            display_text: "📋 Copy URL",
-                            id: `copy_${Date.now()}`,
-                            copy_code: url
-                        })
-                    },
-                    {
-                        name: "cta_url",
-                        buttonParamsJson: JSON.stringify({
-                            display_text: "🌐 Open Link",
-                            url
-                        })
-                    }
-                ]
-            }
-        }, { quoted: message });
+        // Success response
+        await sock.sendMessage(
+            chatId,
+            { text: `${url}` },
+            { quoted: message }
+        );
 
     } catch (error) {
-        console.error('[URL] error:', error);
+        console.error('[URL] error:', error?.message || error);
         await sock.sendMessage(chatId, { text: 'Failed to convert media to URL.' }, { quoted: message });
     }
 }
