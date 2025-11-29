@@ -14,7 +14,7 @@ async function UploadFileCatbox(filePath) {
     const res = await axios.post("https://catbox.moe/user/api.php", form, {
         headers: form.getHeaders()
     });
-    return res.data; 
+    return res.data; // permanent URL
 }
 
 async function getMediaBufferAndExt(message) {
@@ -101,19 +101,31 @@ async function urlCommand(sock, chatId, message) {
             return;
         }
 
-        const buttons = [
-            { buttonId: `copy_${Date.now()}`, buttonText: { displayText: "📋 Copy URL" }, type: 1 },
-            { buttonId: `open_${Date.now()}`, buttonText: { displayText: "🌐 Open Link" }, type: 1 }
-        ];
-
-        const buttonMessage = {
-            text: `${url}`,
-            footer: 'Choose an option below',
-            buttons,
-            headerType: 1
-        };
-
-        await sock.sendMessage(chatId, buttonMessage, { quoted: message });
+        // ✅ InteractiveMessage with cta_copy button
+        await sock.sendMessage(chatId, {
+            interactiveMessage: {
+                title: "Your URL",
+                footer: "t.me/supremeLord",
+                body: { text: `${url}` },
+                buttons: [
+                    {
+                        name: "cta_copy",
+                        buttonParamsJson: JSON.stringify({
+                            display_text: "📋 Copy URL",
+                            id: `copy_${Date.now()}`,
+                            copy_code: url
+                        })
+                    },
+                    {
+                        name: "cta_url",
+                        buttonParamsJson: JSON.stringify({
+                            display_text: "🌐 Open Link",
+                            url: url
+                        })
+                    }
+                ]
+            }
+        }, { quoted: message });
 
     } catch (error) {
         console.error('[URL] error:', error?.message || error);
