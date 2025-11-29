@@ -14,7 +14,7 @@ async function UploadFileCatbox(filePath) {
     const res = await axios.post("https://catbox.moe/user/api.php", form, {
         headers: form.getHeaders()
     });
-    return res.data; // permanent URL
+    return res.data; 
 }
 
 async function getMediaBufferAndExt(message) {
