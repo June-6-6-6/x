@@ -74,23 +74,20 @@ async function urlCommand(sock, chatId, message) {
             return;
         }
 
-        const tempDir = path.join(__dirname, '../temp');
+        const tempDir = path.join(__dirname, '../temp'); // fixed __dirname
         if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
-        const tempPath = path.join(tempDir, `${Date.now()}${media.ext}`);
+        const tempPath = path.join(tempDir, `${Date.now()}${media.ext}`); // fixed template string
         fs.writeFileSync(tempPath, media.buffer);
 
         let url = '';
         try {
-            if (media.ext === '.jpg' || media.ext === '.png' || media.ext === '.webp') {
-                // Try TelegraPh first (permanent for images/webp)
+            if (['.jpg', '.png', '.webp'].includes(media.ext)) {
                 try {
                     url = await TelegraPh(tempPath);
                 } catch {
-                    // Fallback to Catbox (permanent for any file)
                     url = await UploadFileCatbox(tempPath);
                 }
             } else {
-                // Non-image → Catbox directly
                 url = await UploadFileCatbox(tempPath);
             }
         } finally {
@@ -104,7 +101,16 @@ async function urlCommand(sock, chatId, message) {
             return;
         }
 
-        await sock.sendMessage(chatId, { text: `Your Url: ${url}\n\n> 🏂June md urls` }, { quoted: message });
+        // Send with interactive buttons
+        await sock.sendMessage(chatId, {
+            text: `Your Url:\n${url}\n\n> 🏂June md urls`,
+            templateButtons: [
+                { index: 1, urlButton: { displayText: "🌐 Open Link", url } },
+                { index: 2, quickReplyButton: { displayText: "📋 Copy URL", id: `copy_${Date.now()}` } }
+            ],
+            headerType: 1
+        }, { quoted: message });
+
     } catch (error) {
         console.error('[URL] error:', error?.message || error);
         await sock.sendMessage(chatId, { text: 'Failed to convert media to URL.' }, { quoted: message });
