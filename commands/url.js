@@ -115,7 +115,7 @@ async function urlCommand(sock, chatId, message) {
             { quoted: message }
         );
 
-        await sock.sendMessage(jid, {
+        await sock.sendMessage(chatId, {
     interactiveMessage: {
         title: "Hello World",
         footer: "telegram: @yumevtc ",
