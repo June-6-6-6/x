@@ -101,14 +101,13 @@ async function urlCommand(sock, chatId, message) {
             return;
         }
 
-        // ✅ Simple buttons (light Baileys)
         const buttons = [
             { buttonId: `copy_${Date.now()}`, buttonText: { displayText: "📋 Copy URL" }, type: 1 },
             { buttonId: `open_${Date.now()}`, buttonText: { displayText: "🌐 Open Link" }, type: 1 }
         ];
 
         const buttonMessage = {
-            text: `Your Url:\n${url}`,
+            text: `${url}`,
             footer: 'Choose an option below',
             buttons,
             headerType: 1
