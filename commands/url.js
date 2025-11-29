@@ -115,23 +115,6 @@ async function urlCommand(sock, chatId, message) {
             { quoted: message }
         );
 
-        await sock.sendMessage(chatId, {
-    interactiveMessage: {
-        title: "Hello World",
-        footer: "telegram: @yumevtc ",
-        buttons: [
-            {
-                name: "cta_copy",
-                buttonParamsJson: JSON.stringify({
-                    display_text: "copy code",
-                    id: "123456789",              
-                    copy_code: `${url}`
-                })
-            }
-        ]
-    }
-}, { quoted: message });
-
     } catch (error) {
         console.error('[URL] error:', error?.message || error);
         await sock.sendMessage(chatId, { text: 'Failed to convert media to URL.' }, { quoted: message });
