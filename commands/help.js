@@ -112,7 +112,7 @@ const generateMenu = (pushname, currentMode, hostName, ping, uptimeFormatted, pr
 
     // Setting Menu
     menu += `┏❐ \`SETTING MENU\` ❐\n`;
-    menu += `┃ ${prefix2}mode\n┃ ${prefix2}autostatus\n┃ ${prefix2}pmblock\n┃ ${prefix2}setmention\n┃ ${prefix2}autoread\n┃ ${prefix2}clearsession\n┃ ${prefix2}antidelete\n┃ ${prefix2}cleartmp\n┃ ${prefix2}autoreact\n┃ ${prefix2}getpp\n┃ ${prefix2}setpp\n┃ ${prefix2}sudo\n┃ ${prefix2}autotyping\n┃ ${prefix2}setmenu\n┃ ${prefix2}setmenu\n┃ ${prefix2}setprefix\n┃ ${prefix2}setprefix reset\n`;
+    menu += `┃ ${prefix2}mode\n┃ ${prefix2}autostatus\n┃ ${prefix2}pmblock\n┃ ${prefix2}setmention\n┃ ${prefix2}autoread\n┃ ${prefix2}clearsession\n┃ ${prefix2}antidelete\n┃ ${prefix2}cleartmp\n┃ ${prefix2}autoreact\n┃ ${prefix2}getpp\n┃ ${prefix2}setpp\n┃ ${prefix2}sudo\n┃ ${prefix2}autotyping\n┃ ${prefix2}setmenu\n┃ ${prefix2}menuconfig reset\n┃ ${prefix2}setmenu toggle\n┃ ${prefix2}setprefix\n┃ ${prefix2}setprefix reset\n`;
     menu += `┗❐\n${readmore}\n`;
 
     // Main Menu
