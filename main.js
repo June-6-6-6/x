@@ -231,7 +231,7 @@ const shazamCommand = require('./commands/shazam');
 global.packname = settings?.packname || "JUNE MD";
 global.author = settings?.author || "Vinpink2";
 global.channelLink = "https://whatsapp.com/channel/0029Va90zAnIHphOuO8Msp3A";
-global.ytch = "Mr Unique Hacker";
+global.ytchanel = "";
 
 // Channel info for message context
 const channelInfo = {
@@ -240,7 +240,7 @@ const channelInfo = {
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
             newsletterJid: '120363417542294659@newsletter',
-            newsletterName: 'cypherX space',
+            newsletterName: 'June Official',
             serverMessageId: -1
         }
     }
@@ -914,7 +914,8 @@ const fake = createFakeContact(message);
                 await demoteCommand(sock, chatId, mentionedJidListDemote, message);
                 break;
 
-            case userMessage === `${prefix}ping`:
+            case userMessage === `${prefix}ping` ||
+                 userMessage === `${prefix}p`:
                 await pingCommand(sock, chatId, message);
                 break;
 
@@ -922,7 +923,9 @@ const fake = createFakeContact(message);
                 await getppCommand(sock, chatId, message);
                 break;
                 
-            case userMessage === `${prefix}uptime`:
+            case userMessage === `${prefix}uptime` ||
+                 userMessage === `${prefix}up` ||
+                 userMessage === `${prefix}runtime`:
                 await aliveCommand(sock, chatId, message);
                 break;
 
