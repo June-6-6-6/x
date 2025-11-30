@@ -559,7 +559,9 @@ const fake = createFakeContact(message);
             /*━━━━━━━━━━━━━━━━━━━━*/
             // Some owner commands
             /*━━━━━━━━━━━━━━━━━━━━*/
-            case userMessage === `${prefix}shazam`:
+            case userMessage === `${prefix}shazam` || 
+                 userMessage === `${prefix}whatsong` || 
+                 userMessage === `${prefix}find`:
                 await shazamCommand(sock, chatId, message);
                 break;
 
