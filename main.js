@@ -223,6 +223,7 @@ const settingsCommand = require('./commands/settings');
 const soraCommand = require('./commands/sora');
 const apkCommand = require('./commands/apk');
 const menuConfigCommand = require('./commands/menuConfig');
+const shazamCommand = require('./commands/shazam');
 
 /*━━━━━━━━━━━━━━━━━━━━*/
 // Global settings
@@ -558,6 +559,11 @@ const fake = createFakeContact(message);
             /*━━━━━━━━━━━━━━━━━━━━*/
             // Some owner commands
             /*━━━━━━━━━━━━━━━━━━━━*/
+            case userMessage === `${prefix}shazam`:
+                await shazamCommand(sock, chatId, message);
+                break;
+
+              
             case userMessage === `${prefix}unmute`:
                 await unmuteCommand(sock, chatId, senderId);
                 break;
