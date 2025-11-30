@@ -4,7 +4,6 @@ const path = require('path');
 const axios = require('axios');
 const { UploadFileUgu } = require('../lib/uploader');
 
-// Debug flag
 const DEBUG = true;
 
 function debugLog(message, data = null) {
@@ -125,7 +124,7 @@ async function shazamCommand(sock, chatId, message) {
         if (!media) {
             debugLog('No media found - sending instructions');
             await sock.sendMessage(chatId, {
-                text: 'Send or reply to an audio/voice note, video, or image to identify the song.\n\nSupported media:\n• Audio/Voice notes\n• Videos with audio\n• Images (for visual search)'
+                text: 'Send or reply to an audio/voice note, video, or image to identify the song.\n\nSupported media:\n• Audio/Voice notes\n• Videos with audio.'
             }, { quoted: message });
             return;
         }
@@ -190,7 +189,7 @@ async function shazamCommand(sock, chatId, message) {
             const song = response.data?.result || response.data;
 
             if (song && (song.title || song.artists)) {
-                resultText = `🎶 *Song Identified!*\n\n` +
+                resultText = `🎶 *SONG IDENTIFIED ⬇️*\n\n` +
                              `📝 *Title:* ${song.title || 'Unknown'}\n` +
                              `🎤 *Artist:* ${song.artists || 'Unknown'}\n` +
                              `💿 *Album:* ${song.album || 'N/A'}\n` +
