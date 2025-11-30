@@ -656,14 +656,14 @@ const fake = createFakeContact(message);
                 if (!action) {
                     const currentMode = data.isPublic ? 'public' : 'private';
                     await sock.sendMessage(chatId, {
-                        text: `Current bot mode: *${currentMode}*\n\nUsage: ${prefix}mode public/private\n\nExample:\n${prefix}mode public - Allow everyone to use bot\n${prefix}mode private - Restrict to owner only` 
+                        text: `Current bot mode: *${currentMode}*\n\nUsage: ${prefix}mode public|private\n\nExample:\n${prefix}mode public - Allow everyone to use bot\n${prefix}mode private - Restrict to owner only` 
                     }, { quoted: fake });
                     return;
                 }
 
                 if (action !== 'public' && action !== 'private') {
                     await sock.sendMessage(chatId, {
-                        text: `Usage: ${prefix}mode public/private\n\nExample:\n${prefix}mode public - Allow everyone to use bot\n${prefix}mode private - Restrict to owner only`,
+                        text: `Usage: ${prefix}mode public|private\n\nExample:\n${prefix}mode public - Allow everyone to use bot\n${prefix}mode private - Restrict to owner only`,
                         ...channelInfo
                     }, { quoted: fake });
                     return;
@@ -676,16 +676,16 @@ const fake = createFakeContact(message);
                     // Save updated data
                     fs.writeFileSync('./data/messageCount.json', JSON.stringify(data, null, 2));
 
-                    await sock.sendMessage(chatId, { text: `Bot is now in *${action}* mode`},{quoted: fake});
+                    await sock.sendMessage(chatId, { text: `Successfully set the bot to *${action}* mode`},{quoted: fake});
                 } catch (error) {
                     console.error('Error updating access mode:', error);
-                    await sock.sendMessage(chatId, { text: 'Failed to update bot access mode'},{quoted: fake });
+                    await sock.sendMessage(chatId, { text: 'Failed to update bot access mode'},{ quoted: fake });
                 }
                 break;
 
             case userMessage.startsWith(`${prefix}anticall`):
                 if (!message.key.fromMe && !senderIsSudo) {
-                    await sock.sendMessage(chatId, { text: 'Only owner/sudo can use anticall.' }, { quoted: message });
+                    await sock.sendMessage(chatId, { text: 'Only owner/sudo can use anticall.' }, { quoted: fake });
                     break;
                 }
                 {
@@ -718,7 +718,7 @@ const fake = createFakeContact(message);
                 if (isSenderAdmin || message.key.fromMe) {
                     await tagAllCommand(sock, chatId, senderId, message);
                 } else {
-                    await sock.sendMessage(chatId, { text: 'Sorry, only group admins can use the tagall command.', ...channelInfo }, { quoted: message });
+                    await sock.sendMessage(chatId, { text: 'Sorry, only group admins can use the tagall command.', ...channelInfo }, { quoted: fake });
                 }
                 break;
 
@@ -745,7 +745,7 @@ const fake = createFakeContact(message);
                     await sock.sendMessage(chatId, {
                         text: 'This command can only be used in groups.',
                         ...channelInfo
-                    }, { quoted: message });
+                    }, { quoted: fake });
                     return;
                 }
                 if (!isBotAdmin) {
