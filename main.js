@@ -676,7 +676,7 @@ const fake = createFakeContact(message);
                     // Save updated data
                     fs.writeFileSync('./data/messageCount.json', JSON.stringify(data, null, 2));
 
-                    await sock.sendMessage(chatId, { text: `Successfully set the bot to *${action}* mode`},{quoted: fake});
+                    await sock.sendMessage(chatId, { text: `✅ Successfully set the bot to *${action}* mode`},{quoted: fake});
                 } catch (error) {
                     console.error('Error updating access mode:', error);
                     await sock.sendMessage(chatId, { text: 'Failed to update bot access mode'},{ quoted: fake });
