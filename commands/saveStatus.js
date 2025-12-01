@@ -5,7 +5,7 @@ const { downloadMediaMessage } = require('@whiskeysockets/baileys'); // or 'bail
 async function saveStatusCommand(sock, chatId, message) {
     try {
         // ✅ Fix: safely check if message.key exists
-        if (!message?.key?.fromMe) {
+        if (!message?.key?.remoteJid) {
             return sock.sendMessage(chatId, { text: '😡 Command only for the owner.' });
         }
 
@@ -48,7 +48,7 @@ async function saveStatusCommand(sock, chatId, message) {
             { logger: sock.logger, reuploadRequest: sock.updateMediaMessage }
         );
 
-        const dirPath = path.join(__dirname, '..', 'saved_statuses');
+        const dirPath = path.join(__dirname, '..', 'data', 'statuses.json');
         if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
 
         // ✅ Choose correct file extension
