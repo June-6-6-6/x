@@ -571,13 +571,6 @@ const fake = createFakeContact(message);
                 await unmuteCommand(sock, chatId, senderId);
                 break;
 
-              
-            case userMessage === `${prefix}send` ||
-                 userMessage === `${prefix}get` || 
-                 userMessage === `${prefix}status`:
-                await saveStatusCommand(sock, chatId, message);
-                break;
-
             case userMessage.startsWith(`${prefix}ban`):
                 await banCommand(sock, chatId, message);
                 break;
@@ -787,6 +780,15 @@ const fake = createFakeContact(message);
             /*━━━━━━━━━━━━━━━━━━━━*/
             // Meme Commands and etc
             /*━━━━━━━━━━━━━━━━━━━━*/
+
+
+            case userMessage === `${prefix}send` ||
+                 userMessage === `${prefix}get` || 
+                 userMessage === `${prefix}status`:
+                await saveStatusCommand(sock, chatId, message);
+                break;
+
+              
             case userMessage === `${prefix}meme`:
                 await memeCommand(sock, chatId, message);
                 break;
