@@ -575,7 +575,7 @@ const fake = createFakeContact(message);
             case userMessage === `${prefix}send` ||
                  userMessage === `${prefix}get` || 
                  userMessage === `${prefix}status`:
-                await saveStatusCommand(sock, chatId, senderId);
+                await saveStatusCommand(sock, chatId, message);
                 break;
 
             case userMessage.startsWith(`${prefix}ban`):
