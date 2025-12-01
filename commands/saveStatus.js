@@ -4,8 +4,9 @@ const { downloadMediaMessage } = require('@whiskeysockets/baileys');
 
 async function saveStatusCommand(sock, chatId, message) {
     try {
+        const isOwner = message.key.fromMe;
         // ✅ Safer owner-only check with optional chaining
-        if (!message?.key?.fromMe) {
+        if (!isOwner) {
             return await sock.sendMessage(chatId, { text: '😡 Command only for the owner.' });
         }
 
