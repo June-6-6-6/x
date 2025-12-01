@@ -1,6 +1,6 @@
 /**
  * A WhatsApp Bot
- * Autotyping Command - Shows fake typing status (straight typing presence with random duration)
+ * Autotyping Command - Shows fake typing status (straight typing presence with fixed 15s duration)
  */
 
 const fs = require('fs');
@@ -81,12 +81,7 @@ function isAutotypingEnabled() {
     }
 }
 
-// Utility: random delay between min and max (ms)
-function randomDelay(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-// Straight typing presence with random duration
+// Straight typing presence with fixed 15s duration
 async function straightTypingPresence(sock, chatId) {
     if (isAutotypingEnabled()) {
         try {
@@ -96,8 +91,8 @@ async function straightTypingPresence(sock, chatId) {
             // Show typing status
             await sock.sendPresenceUpdate('composing', chatId);
 
-            // Random typing duration between 1–3 seconds
-            const typingDuration = randomDelay(1000, 3000);
+            // Fixed typing duration of 15 seconds
+            const typingDuration = 15000;
             await new Promise(resolve => setTimeout(resolve, typingDuration));
 
             // End typing
