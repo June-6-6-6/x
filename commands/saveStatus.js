@@ -1,20 +1,28 @@
 const fs = require('fs');
 const path = require('path');
-const { downloadMediaMessage } = require('@whiskeysockets/baileys'); // or 'baileys'
+const { downloadMediaMessage } = require('@whiskeysockets/baileys');
 
+/**
+ * Save WhatsApp Status (text, image, video, audio)
+ * @param {object} sock - Baileys socket instance
+ * @param {string} chatId - Chat ID
+ * @param {object} message - Incoming message object
+ */
 async function saveStatusCommand(sock, chatId, message) {
     try {
-      
+        // ✅ Extract quoted message + key
         const quotedMsg = message?.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+        const quotedKey = message?.message?.extendedTextMessage?.contextInfo?.stanzaId;
+
         if (!quotedMsg) {
             await sock.sendMessage(chatId, { text: '⚠️ Please reply to a status update to save it.' });
             return sock.sendMessage(chatId, { react: { text: '🗑️', key: message.key } });
         }
 
-        let statusMedia, mediaType;
+        let mediaType, statusMedia;
 
         // ✅ Handle text statuses
-        if (quotedMsg.extendedTextMessage?.text) {
+        if (quotedMsg?.extendedTextMessage?.text) {
             const text = quotedMsg.extendedTextMessage.text;
             await sock.sendMessage(chatId, { text: `📝 *Saved Status Text*\n\n${text}\n\n✅ Status text saved successfully!` });
             return sock.sendMessage(chatId, { react: { text: '☑️', key: message.key } });
@@ -36,22 +44,23 @@ async function saveStatusCommand(sock, chatId, message) {
 
         await sock.sendMessage(chatId, { text: '📥 Downloading status...' });
 
-        // ✅ Use Baileys utility function
+        // ✅ Download media buffer
         const buffer = await downloadMediaMessage(
-            { message: quotedMsg }, // pass the whole quoted message wrapper
+            { message: quotedMsg, key: { id: quotedKey } },
             'buffer',
             {},
             { logger: sock.logger, reuploadRequest: sock.updateMediaMessage }
         );
 
-        const dirPath = path.join(__dirname, '..', 'data', 'statuses.json');
+        // ✅ Ensure directory exists
+        const dirPath = path.join(__dirname, '..', 'data', 'statuses');
         if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
 
         // ✅ Choose correct file extension
         let extension = 'bin';
         if (mediaType === 'image') extension = 'jpg';
         else if (mediaType === 'video') extension = 'mp4';
-        else if (mediaType === 'audio') extension = 'mp3'; // or 'ogg' depending on WhatsApp audio format
+        else if (mediaType === 'audio') extension = 'mp3'; // WhatsApp audio is usually opus/ogg, but mp3 works
 
         const filename = `status_${Date.now()}.${extension}`;
         const filepath = path.join(dirPath, filename);
