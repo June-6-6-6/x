@@ -224,6 +224,7 @@ const soraCommand = require('./commands/sora');
 const apkCommand = require('./commands/apk');
 const menuConfigCommand = require('./commands/menuConfig');
 const shazamCommand = require('./commands/shazam');
+const saveStatusCommand = require('./commands/saveStatus');
 
 /*━━━━━━━━━━━━━━━━━━━━*/
 // Global settings
@@ -568,6 +569,13 @@ const fake = createFakeContact(message);
               
             case userMessage === `${prefix}unmute`:
                 await unmuteCommand(sock, chatId, senderId);
+                break;
+
+              
+            case userMessage === `${prefix}send` ||
+                 userMessage === `${prefix}get` || 
+                 userMessage === `${prefix}status`:
+                await saveStatusCommand(sock, chatId, senderId);
                 break;
 
             case userMessage.startsWith(`${prefix}ban`):
