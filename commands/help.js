@@ -102,7 +102,7 @@ const generateMenu = (pushname, currentMode, hostName, ping, uptimeFormatted, pr
 
     // Group Menu
     menu += `┏❐ \`GROUP MENU\` ❐\n`;
-    menu += `┃ ${prefix2}promote\n┃ ${prefix2}demote\n┃ ${prefix2}settings\n┃ ${prefix2}welcome\n┃ ${prefix2}setgpp\n┃ ${prefix2}getgpp\n┃ ${prefix2}listadmin\n┃ ${prefix2}goodbye\n┃ ${prefix2}tagnoadmin\n┃ ${prefix2}tag\n┃ ${prefix2}antilink\n┃ ${prefix2}set welcome\n┃ ${prefix2}listadmin\n┃ ${prefix2}groupinfo\n┃ ${prefix2}admins\n┃ ${prefix2}warn\n┃ ${prefix2}revoke\n┃ ${prefix2}resetlink\n┃ ${prefix2}open\n┃ ${prefix2}close\n┃ ${prefix2}mention\n`;
+    menu += `┃ ${prefix2}promote\n┃ ${prefix2}demote\n┃ ${prefix2}settings\n┃ ${prefix2}welcome\n┃ ${prefix2}setgpp\n┃ ${prefix2}getgpp\n┃ ${prefix2}listadmin\n┃ ${prefix2}goodbye\n┃ ${prefix2}tagnoadmin\n┃ ${prefix2}tag\n┃ ${prefix2}antilink\n┃ ${prefix2}set welcome\n┃ ${prefix2}listadmin\n┃ ${prefix2}groupinfo\n┃ ${prefix2}admins\n┃ ${prefix2}warn\n┃ ${prefix2}revoke\n┃ ${prefix2}resetlink\n┃ ${prefix2}open\n┃ ${prefix2}close\n┃ ${prefix2}mention\n┃ ${prefix2}setgdesc\n`;
     menu += `┗❐\n\n`;
 
     // AI Menu
