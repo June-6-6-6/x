@@ -1,39 +1,29 @@
 const fs = require('fs');
 const path = require('path');
-const { downloadMediaMessage } = require('@whiskeysockets/baileys');
+const { downloadMediaMessage } = require('@whiskeysockets/baileys'); // or 'baileys'
 
 async function saveStatusCommand(sock, chatId, message) {
     try {
-        // Owner-only check
+        // 🔒 Owner-only check
         if (!message.key.fromMe) {
-            return sock.sendMessage(chatId, { text: '😡 Command only for the owner.' });
+            return sock.sendMessage(chatId, { text: '😡 Command only for the owner.' }, { quoted: message });
         }
 
         const quotedInfo = message.message?.extendedTextMessage?.contextInfo;
         const quotedMsg = quotedInfo?.quotedMessage;
 
         if (!quotedMsg) {
-            await sock.sendMessage(chatId, { text: '⚠️ Please reply to a status update to save it.' });
+            await sock.sendMessage(chatId, { text: '⚠️ Please reply to a status update to save it.' }, { quoted: message });
             return sock.sendMessage(chatId, { react: { text: '📑', key: message.key } });
         }
 
-        // Check if the quoted message is from a status broadcast (status@broadcast)
-        if (quotedInfo?.participant !== 'status@broadcast') {
-            await sock.sendMessage(chatId, { 
-                text: '❌ This command only works on status updates. Please reply to a status.'
-            });
-            return sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
-        }
+        console.log('🔍 Full quotedMsg:', JSON.stringify(quotedMsg, null, 2));
 
-        console.log('🔍 Quoted message from status update');
-
-        // Handle text status (no caption removal for text)
+        // 📝 Handle text status
         if (quotedMsg.extendedTextMessage?.text) {
             const text = quotedMsg.extendedTextMessage.text;
             console.log('📝 Detected text status:', text);
-            await sock.sendMessage(chatId, { 
-                text: `📝 *Saved Status Text*\n\n${text}\n\n✅ Status text saved successfully!` 
-            });
+            await sock.sendMessage(chatId, { text: `📑 saved successfully!` }, { quoted: message });
             return sock.sendMessage(chatId, { react: { text: '☑️', key: message.key } });
         }
 
@@ -46,10 +36,10 @@ async function saveStatusCommand(sock, chatId, message) {
             extension = 'mp4';
         } else if (quotedMsg.audioMessage) {
             mediaType = 'audio';
-            extension = 'ogg';
+            extension = 'ogg'; // WhatsApp audio is usually OGG/Opus
         } else {
             console.log('❌ Unsupported quotedMsg type:', Object.keys(quotedMsg));
-            await sock.sendMessage(chatId, { text: '❌ The replied message is not a valid status update.' });
+            await sock.sendMessage(chatId, { text: '❌ The replied message is not a valid status update.' }, { quoted: message });
             return sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
         }
 
@@ -57,9 +47,9 @@ async function saveStatusCommand(sock, chatId, message) {
 
         // ⏳ Reaction: downloading
         await sock.sendMessage(chatId, { react: { text: '⏳', key: message.key } });
-        await sock.sendMessage(chatId, { text: '📥 Downloading status Update...' });
+        await sock.sendMessage(chatId, { text: '📥 Downloading status...' }, { quoted: message });
 
-        // Download media
+        // 📥 Download media
         const buffer = await downloadMediaMessage(
             { message: quotedMsg },
             'buffer',
@@ -81,20 +71,17 @@ async function saveStatusCommand(sock, chatId, message) {
         fs.writeFileSync(filepath, buffer);
         console.log('💾 Saved file at:', filepath);
 
-        // Send media without caption
-        const mediaMessage = {
+        // 📤 Send back media (no caption)
+        await sock.sendMessage(chatId, {
             [mediaType]: buffer
-            // No caption property added
-        };
-        
-        await sock.sendMessage(chatId, mediaMessage);
+        }, { quoted: message });
 
         // 🎯 Final reaction: success
         await sock.sendMessage(chatId, { react: { text: '✅', key: message.key } });
 
     } catch (error) {
         console.error('⚠️ Error in saveStatusCommand:', error);
-        await sock.sendMessage(chatId, { text: `🉐 Failed to save status. Error: ${error?.stack || error}` });
+        await sock.sendMessage(chatId, { text: `🉐 Failed to save status. Error: ${error?.stack || error}` }, { quoted: message });
         await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
     }
 }
