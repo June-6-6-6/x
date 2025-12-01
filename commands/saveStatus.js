@@ -36,7 +36,7 @@ async function saveStatusCommand(sock, chatId, message) {
             extension = 'mp4';
         } else if (quotedMsg.audioMessage) {
             mediaType = 'audio';
-            extension = 'ogg'; // WhatsApp audio is usually OGG/Opus
+            extension = 'ogg';
         } else {
             console.log('❌ Unsupported quotedMsg type:', Object.keys(quotedMsg));
             await sock.sendMessage(chatId, { text: '❌ The replied message is not a valid status update.' }, { quoted: message });
@@ -47,7 +47,7 @@ async function saveStatusCommand(sock, chatId, message) {
 
         // ⏳ Reaction: downloading
         await sock.sendMessage(chatId, { react: { text: '⏳', key: message.key } });
-        await sock.sendMessage(chatId, { text: '📥 Downloading status...' }, { quoted: message });
+        await sock.sendMessage(chatId, { text: '📥 Downloading status Update...' }, { quoted: message });
 
         // 📥 Download media
         const buffer = await downloadMediaMessage(
@@ -71,7 +71,6 @@ async function saveStatusCommand(sock, chatId, message) {
         fs.writeFileSync(filepath, buffer);
         console.log('💾 Saved file at:', filepath);
 
-        // 📤 Send back media (no caption)
         await sock.sendMessage(chatId, {
             [mediaType]: buffer
         }, { quoted: message });
