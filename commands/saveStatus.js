@@ -4,11 +4,7 @@ const { downloadMediaMessage } = require('@whiskeysockets/baileys'); // or 'bail
 
 async function saveStatusCommand(sock, chatId, message) {
     try {
-        // ✅ Fix: safely check if message.key exists
-        if (!message?.key?.remoteJid) {
-            return sock.sendMessage(chatId, { text: '😡 Command only for the owner.' });
-        }
-
+      
         const quotedMsg = message?.message?.extendedTextMessage?.contextInfo?.quotedMessage;
         if (!quotedMsg) {
             await sock.sendMessage(chatId, { text: '⚠️ Please reply to a status update to save it.' });
