@@ -1,10 +1,11 @@
 // Enhanced APK Downloader with better error handling and features
-async function aiCommand(sock, chatId, message) {
+    const axios = require('axios');
+
+async function aiCommand(sock, chatId, message) {    
     const text = message.message?.conversation || message.message?.extendedTextMessage?.text;
     const parts = text.split(' ');
     const command = parts[0].toLowerCase();
     const query = parts.slice(1).join(' ').trim();
-
     // Input validation
     if (!query) {
         await sock.sendMessage(chatId, {
@@ -41,7 +42,7 @@ async function aiCommand(sock, chatId, message) {
         // React loading
         await sock.sendMessage(chatId, { react: { text: "🔍", key: message.key } });
 
-        const axios = require('axios');
+
         
         // Enhanced API URL with more parameters
         const apiUrl = `http://ws75.aptoide.com/api/7/apps/search/query=${encodeURIComponent(query)}/limit=10`;
@@ -91,7 +92,7 @@ async function aiCommand(sock, chatId, message) {
 📁 *Size:* ${sizeMB} MB
 🏷️ *Version:* ${app.vercode || app.vername || 'Unknown'}
 
-🔒 *Always verify APK sources.*
+🔒 *Use at your own risk. Always verify APK sources.*
 `.trim();
 
         // Send processing reaction
