@@ -11,7 +11,7 @@ async function handleAntilinkCommand(sock, chatId, userMessage, senderId, isSend
             return;
         }
 
-        const prefix = '.';
+        const prefix = getPrefix();
         const args = userMessage.slice(9).toLowerCase().trim().split(' ');
         const action = args[0];
 
