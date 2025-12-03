@@ -1,6 +1,7 @@
 const { setAntilink, getAntilink, removeAntilink } = require('../lib/index');
 const isAdmin = require('../lib/isAdmin');
 const getPrefix = require('./setprefix');
+
 // Store warn counts in memory
 const warnCounts = new Map();
 
@@ -11,7 +12,9 @@ async function handleAntilinkCommand(sock, chatId, userMessage, senderId, isSend
             return;
         }
 
-        const prefix = getPrefix();
+        // Use provided prefix or fallback
+        prefix = prefix || getPrefix();
+
         const args = userMessage.slice(9).toLowerCase().trim().split(' ');
         const action = args[0];
 
@@ -22,25 +25,27 @@ async function handleAntilinkCommand(sock, chatId, userMessage, senderId, isSend
         }
 
         switch (action) {
-            case 'on':
+            case 'on': {
                 const existingConfig = await getAntilink(chatId, 'on');
-                if (existingConfig?.enabled) {
-                    await sock.sendMessage(chatId, { text: 'Antilink is already on' });
+                if (existingConfig && existingConfig.enabled) {
+                    await sock.sendMessage(chatId, { text: 'Antilink is already ON' });
                     return;
                 }
-                const result = await setAntilink(chatId, 'on', 'warn');
+                const result = await setAntilink(chatId, 'on', { enabled: true, action: 'warn' });
                 await sock.sendMessage(chatId, { 
                     text: result ? 'Antilink has been turned ON (Default: Warn)' : 'Failed to turn on Antilink' 
                 });
                 break;
+            }
 
-            case 'off':
+            case 'off': {
                 await removeAntilink(chatId, 'on');
                 clearAllWarns(chatId);
                 await sock.sendMessage(chatId, { text: 'Antilink has been turned OFF' });
                 break;
+            }
 
-            case 'set':
+            case 'set': {
                 if (args.length < 2) {
                     await sock.sendMessage(chatId, { 
                         text: `Please specify an action: ${prefix}antilink set delete | kick | warn` 
@@ -49,57 +54,51 @@ async function handleAntilinkCommand(sock, chatId, userMessage, senderId, isSend
                 }
                 const setAction = args[1];
                 if (!['delete', 'kick', 'warn'].includes(setAction)) {
-                    await sock.sendMessage(chatId, { 
-                        text: 'Invalid action. Choose delete, kick, or warn.' 
-                    });
+                    await sock.sendMessage(chatId, { text: 'Invalid action. Choose delete, kick, or warn.' });
                     return;
                 }
-                const setResult = await setAntilink(chatId, 'on', setAction);
+                const setResult = await setAntilink(chatId, 'on', { enabled: true, action: setAction });
                 await sock.sendMessage(chatId, { 
                     text: setResult ? `Antilink action set to ${setAction}` : 'Failed to set Antilink action' 
                 });
                 break;
+            }
 
-            case 'setlimit':
+            case 'setlimit': {
                 if (args.length < 2 || isNaN(args[1])) {
                     await sock.sendMessage(chatId, { 
-                        text: `Usage: ${prefix}antilink setlimit <number>\nExample: .antilink setlimit 5` 
+                        text: `Usage: ${prefix}antilink setlimit <number>\nExample: ${prefix}antilink setlimit 5` 
                     });
                     return;
                 }
-                
                 const limit = parseInt(args[1]);
                 if (limit < 1 || limit > 10) {
-                    await sock.sendMessage(chatId, { 
-                        text: 'Please set a limit between 1 and 10' 
-                    });
+                    await sock.sendMessage(chatId, { text: 'Please set a limit between 1 and 10' });
                     return;
                 }
-                
-                // Store limit in memory or extend your existing setAntilink function
                 await setAntilink(chatId, 'limit', limit);
-                await sock.sendMessage(chatId, { 
-                    text: `Warn limit set to ${limit}` 
-                });
+                await sock.sendMessage(chatId, { text: `Warn limit set to ${limit}` });
                 break;
+            }
 
-            case 'get':
-                const status = await getAntilink(chatId, 'on');
-                const actionConfig = await getAntilink(chatId, 'on');
+            case 'get': {
+                const statusConfig = await getAntilink(chatId, 'on');
+                const actionConfig = statusConfig?.action || 'Not set';
                 const userKey = `${chatId}:${senderId}`;
                 const userWarns = getWarnCount(userKey);
                 const warnLimit = await getAntilink(chatId, 'limit') || 3;
                 
                 await sock.sendMessage(chatId, { 
-                    text: `Antilink Configuration:\nStatus: ${status ? 'ON' : 'OFF'}\nAction: ${actionConfig ? actionConfig.action : 'Not set'}\nWarn Limit: ${warnLimit}\nYour Warns: ${userWarns}/${warnLimit}` 
+                    text: `Antilink Configuration:\nStatus: ${statusConfig?.enabled ? 'ON' : 'OFF'}\nAction: ${actionConfig}\nWarn Limit: ${warnLimit}\nYour Warns: ${userWarns}/${warnLimit}` 
                 });
                 break;
+            }
 
             default:
                 await sock.sendMessage(chatId, { text: `Use ${prefix}antilink for usage.` });
         }
     } catch (error) {
-        console.error('Error in antilink command:', error);
+        console.error('Error in antilink command:', error.message, error.stack);
         await sock.sendMessage(chatId, { text: 'Error processing antilink command' });
     }
 }
@@ -108,12 +107,6 @@ async function handleLinkDetection(sock, chatId, message, userMessage, senderId)
     const antilinkSetting = await getAntilink(chatId, 'on');
     if (!antilinkSetting?.enabled) return;
 
-    console.log(`Antilink Setting for ${chatId}:`, antilinkSetting);
-    console.log(`Checking message for links: ${userMessage}`);
-    
-    // Log the full message object to diagnose message structure
-    console.log("Full message object: ", JSON.stringify(message, null, 2));
-
     const linkPatterns = {
         whatsappGroup: /chat\.whatsapp\.com\/[A-Za-z0-9]{20,}/,
         whatsappChannel: /wa\.me\/channel\/[A-Za-z0-9]{20,}/,
@@ -121,7 +114,6 @@ async function handleLinkDetection(sock, chatId, message, userMessage, senderId)
         allLinks: /https?:\/\/[^\s]+/,
     };
 
-    // Check for any link pattern
     let linkDetected = false;
     let linkType = null;
 
@@ -133,34 +125,25 @@ async function handleLinkDetection(sock, chatId, message, userMessage, senderId)
         }
     }
 
-    if (!linkDetected) {
-        console.log('No link detected');
-        return;
-    }
+    if (!linkDetected) return;
 
-    console.log(`Detected ${linkType} link from ${senderId}`);
-    
     const userKey = `${chatId}:${senderId}`;
     const action = antilinkSetting.action || 'delete';
     const warnLimit = await getAntilink(chatId, 'limit') || 3;
     
-    // Handle based on current action
     switch (action) {
         case 'delete':
             await deleteMessage(sock, chatId, message, senderId);
             break;
-            
-        case 'warn':
+        case 'warn': {
             const warnCount = incrementWarnCount(userKey);
             await sendWarning(sock, chatId, senderId, warnCount, warnLimit);
-            
-            // If warn limit reached, take action
             if (warnCount >= warnLimit) {
                 await takeAction(sock, chatId, senderId, 'kick');
                 resetWarnCount(userKey);
             }
             break;
-            
+        }
         case 'kick':
             await kickUser(sock, chatId, senderId);
             break;
@@ -183,8 +166,7 @@ function resetWarnCount(userKey) {
 }
 
 function clearAllWarns(chatId) {
-    // Clear all warns for this chat
-    for (const [key, _] of warnCounts.entries()) {
+    for (const key of warnCounts.keys()) {
         if (key.startsWith(`${chatId}:`)) {
             warnCounts.delete(key);
         }
@@ -193,51 +175,28 @@ function clearAllWarns(chatId) {
 
 async function deleteMessage(sock, chatId, message, senderId) {
     try {
-        const quotedMessageId = message.key.id;
-        const quotedParticipant = message.key.participant || senderId;
-
-        console.log(`Attempting to delete message with id: ${quotedMessageId} from participant: ${quotedParticipant}`);
-
-        await sock.sendMessage(chatId, {
-            delete: { remoteJid: chatId, fromMe: false, id: quotedMessageId, participant: quotedParticipant },
-        });
-        
-        console.log(`Message with ID ${quotedMessageId} deleted successfully.`);
-        
-        const mentionedJidList = [senderId];
+        await sock.sendMessage(chatId, { delete: message.key });
         await sock.sendMessage(chatId, { 
             text: `@${senderId.split('@')[0]}, your link was deleted. No links allowed!`, 
-            mentions: mentionedJidList 
+            mentions: [senderId] 
         });
     } catch (error) {
-        console.error('Failed to delete message:', error);
+        console.error('Failed to delete message:', error.message);
     }
 }
 
 async function sendWarning(sock, chatId, senderId, currentWarns, warnLimit) {
     const warningsLeft = warnLimit - currentWarns;
+    let warningText = `⚠️ Warning @${senderId.split('@')[0]}! Posting links is not allowed. This is warning ${currentWarns}/${warnLimit}. `;
+    warningText += warningsLeft > 0 ? `${warningsLeft} warning(s) left before action.` : 'Action will be taken now.';
     
-    let warningText = `⚠️ Warning @${senderId.split('@')[0]}! `;
-    warningText += `Posting links is not allowed. `;
-    warningText += `This is warning ${currentWarns}/${warnLimit}. `;
-    
-    if (warningsLeft > 0) {
-        warningText += `${warningsLeft} warning(s) left before action.`;
-    } else {
-        warningText += 'Action will be taken now.';
-    }
-    
-    await sock.sendMessage(chatId, { 
-        text: warningText, 
-        mentions: [senderId] 
-    });
+    await sock.sendMessage(chatId, { text: warningText, mentions: [senderId] });
 }
 
 async function takeAction(sock, chatId, senderId, action) {
     if (action === 'kick') {
         await kickUser(sock, chatId, senderId);
-    } else if (action === 'delete') {
-        // For delete action at limit, just send final warning
+    } else {
         await sock.sendMessage(chatId, { 
             text: `@${senderId.split('@')[0]}, you've reached the warning limit! Further links will result in removal.`, 
             mentions: [senderId] 
@@ -247,21 +206,13 @@ async function takeAction(sock, chatId, senderId, action) {
 
 async function kickUser(sock, chatId, senderId) {
     try {
-        // Try to remove user from group
-        await sock.groupParticipantsUpdate(
-            chatId,
-            [senderId],
-            'remove'
-        );
-        
+        await sock.groupParticipantsUpdate(chatId, [senderId], 'remove');
         await sock.sendMessage(chatId, { 
             text: `@${senderId.split('@')[0]} has been removed for posting links.`, 
             mentions: [senderId] 
         });
-        
-        console.log(`User ${senderId} removed from group ${chatId}`);
     } catch (error) {
-        console.error('Failed to remove user:', error);
+        console.error('Failed to remove user:', error.message);
         await sock.sendMessage(chatId, { 
             text: `Could not remove @${senderId.split('@')[0]}. Make sure I'm an admin.`, 
             mentions: [senderId] 
@@ -274,6 +225,5 @@ module.exports = {
     handleLinkDetection,
     getWarnCount,
     incrementWarnCount,
-    resetWarnCount,
-    clearAllWarns
-};
+    resetWarnCount
+            }
