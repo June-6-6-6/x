@@ -4,7 +4,7 @@ const isAdmin = require('../lib/isAdmin');
 // Store warn counts in memory
 const warnCounts = new Map();
 
-async function handleAntilinkCommand(sock, chatId, userMessage, senderId, isSenderAdmin) {
+async function handleAntilinkCommand(sock, chatId, userMessage, senderId, isSenderAdmin, prefix) {
     try {
         if (!isSenderAdmin) {
             await sock.sendMessage(chatId, { text: 'For Group Admins Only!' });
