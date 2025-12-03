@@ -1,6 +1,6 @@
 const { setAntilink, getAntilink, removeAntilink } = require('../lib/index');
 const isAdmin = require('../lib/isAdmin');
-const getPrefix = require(./setprefix');
+const getPrefix = require('./setprefix');
 // Store warn counts in memory
 const warnCounts = new Map();
 
