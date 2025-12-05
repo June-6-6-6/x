@@ -44,11 +44,11 @@ async function aliveCommand(sock, chatId, message) {
     const formattedUptime = formatUptime(uptime);
     const hostName = detectPlatform();
 
-    const message1 = `  ⚙️ *Bot Status* 
-🎲 Platform: ${hostName}
-🔄 Version: ${settings.version || 'undefined !'}
-📱 Powered by: ${settings.botName || ''}
-> 📟 Uptime: ${formattedUptime}
+  const message1 = `📑 *Bot-uptime Status* 
+ Platform: ${hostName}
+ Version: ${settings.version || 'undefined !'}
+ Powered by: ${settings.botName || ''}
+> Uptime: ${formattedUptime}
 `;
 
     // Fake contact for quoting
@@ -75,7 +75,7 @@ async function aliveCommand(sock, chatId, message) {
     await sock.sendMessage(chatId, {
       text: message1,
       audio: { url: "https://files.catbox.moe/fafj8p.mp3" }, // <-- replace with your hosted OGG link
-      mimetype: 'audio/ogg',
+      mimetype: 'audio/mp3',
       ptt: false, 
       contextInfo: {
         externalAdReply: {
