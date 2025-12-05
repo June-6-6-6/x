@@ -39,68 +39,6 @@ const pino = require("pino")
 const readline = require("readline")
 const { rmSync } = require('fs')
 
-/**
-* sever functionslity
-*/
-const express = require('express');
-const PORT = process.env.PORT || 4420;
-const app = express();
-
-// Add request logging middleware
-app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-    next();
-});
-
-// Serve static files from 'lib' directory
-app.use(express.static("lib"));
-
-// Serve main HTML file with error checking
-app.get("/", (req, res) => {
-    const filePath = path.join(__dirname, "/lib/server.html");
-    console.log(`Looking for file at: ${filePath}`);
-    
-    // Check if file exists
-    if (fs.existsSync(filePath)) {
-        console.log("✓ File exists, sending...");
-        res.sendFile(filePath, (err) => {
-            if (err) {
-                console.error("Error sending file:", err);
-                res.status(500).send("Error loading page");
-            } else {
-                console.log("✓ File sent successfully");
-            }
-        });
-    } else {
-        console.error("✗ File not found!");
-        res.status(404).send(`
-            <h1>File not found!</h1>
-            <p>Looking for: ${filePath}</p>
-            <p>Current directory: ${__dirname}</p>
-        `);
-    }
-});
-
-// Add a test route
-app.get("/test", (req, res) => {
-    res.send("Test route is working!");
-});
-
-// 404 handler
-app.use((req, res) => {
-    console.log(`404: ${req.url}`);
-    res.status(404).send("Page not found");
-});
-
-// Start server
-app.listen(PORT, () => {
-    console.log(`=================================`);
-    console.log(`Server Running on Port: ${PORT}`);
-    console.log(`Current directory: ${__dirname}`);
-    console.log(`Full server.html path: ${path.join(__dirname, "/lib/server.html")}`);
-    console.log(`=================================`);
-});
-
 // --- 🌟 NEW: Centralized Logging Function ---
 /**
  * Custom logging function to enforce the [ JUNE - MD ] prefix and styling.
