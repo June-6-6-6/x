@@ -44,12 +44,12 @@ async function aliveCommand(sock, chatId, message) {
     const formattedUptime = formatUptime(uptime);
     const hostName = detectPlatform();
 
-  const message1 = `📑 *BOT-UPTIME STATUS* 
+  const message1 = `📑 *UPTIME STATUS*
+  
 ☁️ Platform: ${hostName}
 ⚙️ Version: ${settings.version || 'undefined !'}
 🐋 Powered by: ${settings.botName || ''}
-> ⏱️Uptime: ${formattedUptime}
-`;
+> ⏱️ Uptime: ${formattedUptime}`;
 
     // Fake contact for quoting
     const fake = {
