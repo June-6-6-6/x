@@ -8,298 +8,147 @@ const isOwnerOrSudo = require('../lib/isOwner');
 function run(cmd) {
     return new Promise((resolve, reject) => {
         exec(cmd, { windowsHide: true }, (err, stdout, stderr) => {
-            if (err) return reject(new Error((stderr || stdout || err.message || '').toString()));
-            resolve((stdout || '').toString());
+            if (err) return reject(new Error(stderr || stdout || err.message));
+            resolve(stdout.toString().trim());
         });
     });
 }
 
 async function hasGitRepo() {
-    const gitDir = path.join(process.cwd(), '.git');
-    if (!fs.existsSync(gitDir)) return false;
-    try {
-        await run('git --version');
-        return true;
-    } catch {
-        return false;
-    }
+    return fs.existsSync(path.join(process.cwd(), '.git')) &&
+        await run('git --version').then(() => true).catch(() => false);
 }
 
 async function updateViaGit() {
-    const oldRev = (await run('git rev-parse HEAD').catch(() => 'unknown')).trim();
+    const oldRev = await run('git rev-parse HEAD').catch(() => 'unknown');
     await run('git fetch --all --prune');
-    const newRev = (await run('git rev-parse origin/main')).trim();
+    const newRev = await run('git rev-parse origin/main');
     const alreadyUpToDate = oldRev === newRev;
-    const commits = alreadyUpToDate ? '' : await run(`git log --pretty=format:"%h %s (%an)" ${oldRev}..${newRev}`).catch(() => '');
-    const files = alreadyUpToDate ? '' : await run(`git diff --name-status ${oldRev} ${newRev}`).catch(() => '');
-    await run(`git reset --hard ${newRev}`);
-    await run('git clean -fd');
-    return { oldRev, newRev, alreadyUpToDate, commits, files };
+
+    if (!alreadyUpToDate) {
+        await run(`git reset --hard ${newRev}`);
+        await run('git clean -fd');
+    }
+    return { oldRev, newRev, alreadyUpToDate };
 }
 
-function downloadFile(url, dest, visited = new Set()) {
+function downloadFile(url, dest) {
     return new Promise((resolve, reject) => {
-        try {
-            // Avoid infinite redirect loops
-            if (visited.has(url) || visited.size > 5) {
-                return reject(new Error('Too many redirects'));
+        const client = url.startsWith('https://') ? https : require('http');
+        const req = client.get(url, { headers: { 'User-Agent': 'Bot-Updater/1.0' } }, res => {
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                return downloadFile(res.headers.location, dest).then(resolve).catch(reject);
             }
-            visited.add(url);
-
-            const useHttps = url.startsWith('https://');
-            const client = useHttps ? https : require('http');
-            const req = client.get(url, {
-                headers: {
-                    'User-Agent': 'KnightBot-Updater/1.0',
-                    'Accept': '*/*'
-                }
-            }, res => {
-                // Handle redirects
-                if ([301, 302, 303, 307, 308].includes(res.statusCode)) {
-                    const location = res.headers.location;
-                    if (!location) return reject(new Error(`HTTP ${res.statusCode} without Location`));
-                    const nextUrl = new URL(location, url).toString();
-                    res.resume();
-                    return downloadFile(nextUrl, dest, visited).then(resolve).catch(reject);
-                }
-
-                if (res.statusCode !== 200) {
-                    return reject(new Error(`HTTP ${res.statusCode}`));
-                }
-
-                const file = fs.createWriteStream(dest);
-                res.pipe(file);
-                file.on('finish', () => file.close(resolve));
-                file.on('error', err => {
-                    try { file.close(() => {}); } catch {}
-                    fs.unlink(dest, () => reject(err));
-                });
-            });
-            req.on('error', err => {
-                fs.unlink(dest, () => reject(err));
-            });
-        } catch (e) {
-            reject(e);
-        }
+            if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`));
+            const file = fs.createWriteStream(dest);
+            res.pipe(file);
+            file.on('finish', () => file.close(resolve));
+            file.on('error', reject);
+        });
+        req.on('error', reject);
     });
 }
 
 async function extractZip(zipPath, outDir) {
-    // Try to use platform tools; no extra npm modules required
     if (process.platform === 'win32') {
-        const cmd = `powershell -NoProfile -Command "Expand-Archive -Path '${zipPath.replace(/'/g, "''")}' -DestinationPath '${outDir.replace(/\\/g, '/').replace(/'/g, "''")}' -Force"`;
-        await run(cmd);
-        return;
+        await run(`powershell -NoProfile -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${outDir}' -Force"`);
+    } else {
+        try { await run(`unzip -o '${zipPath}' -d '${outDir}'`); }
+        catch { await run(`7z x -y '${zipPath}' -o'${outDir}'`).catch(() => { throw new Error("No unzip tool found"); }); }
     }
-    // Linux/mac: try unzip, else 7z, else busybox unzip
-    try {
-        await run('command -v unzip');
-        await run(`unzip -o '${zipPath.replace(/'/g, "'\\''")}' -d '${outDir.replace(/'/g, "'\\''")}'`);
-        return;
-    } catch {}
-    try {
-        await run('command -v 7z');
-        await run(`7z x -y '${zipPath.replace(/'/g, "'\\''")}' -o'${outDir.replace(/'/g, "'\\''")}'`);
-        return;
-    } catch {}
-    try {
-        await run('busybox unzip -h');
-        await run(`busybox unzip -o '${zipPath.replace(/'/g, "'\\''")}' -d '${outDir.replace(/'/g, "'\\''")}'`);
-        return;
-    } catch {}
-    throw new Error("No system unzip tool found (unzip/7z/busybox). Git mode is recommended on this panel.");
 }
 
-function copyRecursive(src, dest, ignore = [], relative = '', outList = []) {
+function copyRecursive(src, dest, ignore = []) {
     if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
     for (const entry of fs.readdirSync(src)) {
         if (ignore.includes(entry)) continue;
         const s = path.join(src, entry);
         const d = path.join(dest, entry);
         const stat = fs.lstatSync(s);
-        if (stat.isDirectory()) {
-            copyRecursive(s, d, ignore, path.join(relative, entry), outList);
-        } else {
-            // Ensure destination directory exists before copying
-            const destDir = path.dirname(d);
-            if (!fs.existsSync(destDir)) {
-                fs.mkdirSync(destDir, { recursive: true });
-            }
+        if (stat.isDirectory()) copyRecursive(s, d, ignore);
+        else {
+            fs.mkdirSync(path.dirname(d), { recursive: true });
             fs.copyFileSync(s, d);
-            if (outList) outList.push(path.join(relative, entry).replace(/\\/g, '/'));
         }
     }
 }
 
-async function updateViaZip(sock, chatId, message, zipOverride) {
-    const zipUrl = (zipOverride || settings.updateZipUrl || process.env.UPDATE_ZIP_URL || '').trim();
-    if (!zipUrl) {
-        throw new Error('No ZIP URL configured. Set settings.updateZipUrl or UPDATE_ZIP_URL env.');
-    }
+async function updateViaZip(zipUrl) {
     const tmpDir = path.join(process.cwd(), 'tmp');
-    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+    fs.mkdirSync(tmpDir, { recursive: true });
     const zipPath = path.join(tmpDir, 'update.zip');
     await downloadFile(zipUrl, zipPath);
     const extractTo = path.join(tmpDir, 'update_extract');
     if (fs.existsSync(extractTo)) fs.rmSync(extractTo, { recursive: true, force: true });
     await extractZip(zipPath, extractTo);
 
-    // Find the top-level extracted folder (GitHub zips create REPO-branch folder)
     const entries = fs.readdirSync(extractTo);
-    let root = extractTo;
-    if (entries.length === 1) {
-        const potentialRoot = path.join(extractTo, entries[0]);
-        if (fs.existsSync(potentialRoot) && fs.lstatSync(potentialRoot).isDirectory()) {
-            root = potentialRoot;
-        }
-    }
+    const root = entries.length === 1 ? path.join(extractTo, entries[0]) : extractTo;
 
-    const srcRoot = root;
-
-    // Copy over while preserving runtime dirs/files
-    const ignore = ['node_modules', '.git', 'session', 'tmp', 'tmp/', 'temp', 'data', 'baileys_store.json'];
-    const copied = [];
-    
-    // Preserve ownerNumber from existing settings.js if present
-    let preservedOwner = null;
-    let preservedBotOwner = null;
-    try {
-        // Clear require cache to get fresh settings
-        delete require.cache[require.resolve('../settings')];
-        const currentSettings = require('../settings');
-        preservedOwner = currentSettings && currentSettings.ownerNumber ? String(currentSettings.ownerNumber) : null;
-        preservedBotOwner = currentSettings && currentSettings.botOwner ? String(currentSettings.botOwner) : null;
-    } catch (e) {
-        console.log('Could not preserve settings:', e.message);
-    }
-    
-    copyRecursive(srcRoot, process.cwd(), ignore, '', copied);
-    
-    if (preservedOwner) {
-        try {
-            const settingsPath = path.join(process.cwd(), 'settings.js');
-            if (fs.existsSync(settingsPath)) {
-                let text = fs.readFileSync(settingsPath, 'utf8');
-                text = text.replace(/ownerNumber:\s*'[^']*'/, `ownerNumber: '${preservedOwner}'`);
-                if (preservedBotOwner) {
-                    text = text.replace(/botOwner:\s*'[^']*'/, `botOwner: '${preservedBotOwner}'`);
-                }
-                fs.writeFileSync(settingsPath, text);
-            }
-        } catch (e) {
-            console.log('Could not update settings file:', e.message);
-        }
-    }
-    
-    // Cleanup extracted directory
-    try { fs.rmSync(extractTo, { recursive: true, force: true }); } catch {}
-    try { fs.rmSync(zipPath, { force: true }); } catch {}
-    return { copiedFiles: copied };
+    copyRecursive(root, process.cwd(), ['node_modules', '.git', 'session', 'tmp', 'data']);
+    fs.rmSync(extractTo, { recursive: true, force: true });
+    fs.rmSync(zipPath, { force: true });
 }
 
 async function restartProcess(sock, chatId, message) {
-    try {
-        await sock.sendMessage(chatId, { text: '✅ Update complete! Restarting…' }, { quoted: message });
-    } catch {}
-    try {
-        // Preferred: PM2
-        await run('pm2 restart all');
-        return;
-    } catch {}
-    // Panels usually auto-restart when the process exits.
-    // Exit after a short delay to allow the above message to flush.
-    setTimeout(() => {
-        process.exit(0);
-    }, 500);
+    try { 
+        await run('pm2 restart all'); 
+        if (sock && chatId) {
+            await sock.sendMessage(chatId, { text: '🔄 Restarting process...' }, { quoted: message });
+        }
+    }
+    catch { 
+        setTimeout(() => process.exit(0), 500); 
+    }
 }
 
 async function updateCommand(sock, chatId, message, zipOverride) {
-    const senderId = message.key.participant || message.key.remoteJid;
-    const isOwner = await isOwnerOrSudo(senderId, sock, chatId);
-    
-    if (!message.key.fromMe && !isOwner) {
-        await sock.sendMessage(chatId, { text: 'Only bot owner or sudo can use .update' }, { quoted: message });
-        return;
-    }
-
-    let statusMessage = null;
-    
     try {
-        // Send initial message and store it for editing
-        statusMessage = await sock.sendMessage(chatId, { text: '🔄 Updating the *JUNE-X BOT*, please wait…' }, { quoted: message });
-        
+        if (sock && chatId) {
+            await sock.sendMessage(chatId, { text: '⬇️ Starting update...' }, { quoted: message });
+        }
+
         if (await hasGitRepo()) {
-            // Update status message
-            if (statusMessage && statusMessage.key) {
-                await sock.sendMessage(chatId, { 
-                    text: '🔄 Updating *JUNE-X* via ZipExtraction...',
-                    edit: statusMessage.key
-                });
+            const { oldRev, newRev, alreadyUpToDate } = await updateViaGit();
+            if (sock && chatId) {
+                await sock.sendMessage(chatId, { text: alreadyUpToDate ? '✅ Already up to date.' : `📥 Updated from ${oldRev} → ${newRev}` }, { quoted: message });
             }
-            
-            const { oldRev, newRev, alreadyUpToDate, commits, files } = await updateViaGit();
-            
-            // Update status message with git result
-            if (statusMessage && statusMessage.key) {
-                const summary = alreadyUpToDate ? 
-                    `✅ Already up to date: ${newRev}` : 
-                    `✅ Updated from ${oldRev.substring(0, 7)} to ${newRev.substring(0, 7)}`;
-                
-                await sock.sendMessage(chatId, { 
-                    text: `${summary}\n📦 Installing dependencies...`,
-                    edit: statusMessage.key
-                });
-            }
-            
             await run('npm install --no-audit --no-fund');
+            if (sock && chatId) {
+                await sock.sendMessage(chatId, { text: '📦 Installing dependencies...' }, { quoted: message });
+            }
+            if (!alreadyUpToDate) {
+                await restartProcess(sock, chatId, message);
+            }
         } else {
-            // Update status message for ZIP update
-            if (statusMessage && statusMessage.key) {
-                await sock.sendMessage(chatId, { 
-                    text: '📥 Downloading update via ZIP...',
-                    edit: statusMessage.key
-                });
+            const zipUrl = zipOverride || settings.updateZipUrl || process.env.UPDATE_ZIP_URL;
+            if (!zipUrl) throw new Error('No ZIP URL configured');
+            await updateViaZip(zipUrl);
+            if (sock && chatId) {
+                await sock.sendMessage(chatId, { text: '📥 Files updated via ZIP.' }, { quoted: message });
             }
-            
-            const { copiedFiles } = await updateViaZip(sock, chatId, message, zipOverride);
-            
-            // Update status message after ZIP extraction
-            if (statusMessage && statusMessage.key) {
-                await sock.sendMessage(chatId, { 
-                    text: `✅ Extracted ${copiedFiles.length} files\n📦 Installing dependencies...`,
-                    edit: statusMessage.key
-                });
-            }
-            
-            // Install dependencies for ZIP update too
             await run('npm install --no-audit --no-fund');
+            if (sock && chatId) {
+                await sock.sendMessage(chatId, { text: '📦 Installing dependencies...' }, { quoted: message });
+            }
+            await restartProcess(sock, chatId, message);
         }
-        
-        // Final update before restart
-        if (statusMessage && statusMessage.key) {
-            await sock.sendMessage(chatId, { 
-                text: '✅ Update completed! Restarting bot...',
-                edit: statusMessage.key
-            });
+
+        if (sock && chatId) {
+            await sock.sendMessage(chatId, { text: '✅ Update done!' }, { quoted: message });
         }
-        
-        await restartProcess(sock, chatId, message);
     } catch (err) {
-        console.error('Update failed:', err);
-        
-        // Edit the original status message with error
-        if (statusMessage && statusMessage.key) {
-            await sock.sendMessage(chatId, { 
-                text: `❌ Update failed:\n${String(err.message || err).substring(0, 1000)}`,
-                edit: statusMessage.key
-            });
-        } else {
-            // Fallback to new message if editing failed
-            await sock.sendMessage(chatId, { 
-                text: `❌ Update failed:\n${String(err.message || err).substring(0, 1000)}`
-            }, { quoted: message });
+        console.error('Update failed:', err.message);
+        if (sock && chatId) {
+            await sock.sendMessage(chatId, { text: `❌ Update failed: ${err.message}` }, { quoted: message });
         }
     }
 }
+
+// 🔄 Auto-update every 24 hours
+setInterval(() => {
+    console.log('⏰ Running scheduled auto-update...');
+    updateCommand(null, null, null, null);
+}, 24 * 60 * 60 * 1000); // 24 hours
 
 module.exports = updateCommand;
