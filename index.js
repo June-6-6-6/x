@@ -21,7 +21,6 @@ const chalk = require('chalk')
 const path = require('path')
 const axios = require('axios')
 const os = require('os')
-const express = require("express")
 const PhoneNumber = require('awesome-phonenumber')
 // The smsg utility also depends on other files, so we'll move its require statement.
 // const { smsg } = require('./lib/myfunc') 
