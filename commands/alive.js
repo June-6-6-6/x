@@ -44,13 +44,12 @@ async function aliveCommand(sock, chatId, message) {
     const formattedUptime = formatUptime(uptime);
     const hostName = detectPlatform();
 
-    const message1 = `ℹ️ *BOT STATUS* 
-⏰ *UPTIME:* ${formattedUptime}
-🎲 *PLATFORM:* ${hostName}
-🔄 *VERSION:* ${settings.version || 'undefined !'}
-📱 *POWERED BY:* ${settings.botName || 'WhatsApp Bot'}
-
-🔵 Use *menu* to see all available commands`;
+    const message1 = ` *Bot Status* 
+⏰ *Uptime:* ${formattedUptime}
+🎲 *Platform:* ${hostName}
+🔄 *Version:* ${settings.version || 'undefined !'}
+📱 *Powered by:* ${settings.botName || 'WhatsApp Bot'}
+`;
 
     // Fake contact for quoting
     const fake = {
@@ -75,7 +74,7 @@ async function aliveCommand(sock, chatId, message) {
     // Send text + image + audio together
     await sock.sendMessage(chatId, {
       text: message1,
-      audio: { url: "https://example.com/alive.ogg" }, // <-- replace with your hosted OGG link
+      audio: { url: "https://files.catbox.moe/fafj8p.mp3" }, // <-- replace with your hosted OGG link
       mimetype: 'audio/ogg',
       ptt: true, // voice note style
       contextInfo: {
