@@ -42,7 +42,6 @@ const { rmSync } = require('fs')
 const PORT = process.env.PORT || 4420;
 const app = express();
 
-logger.level = "silent";
 app.use(express.static("lib"));
 app.get("/", (req, res) => res.sendFile(__dirname + "/lib/server.html"));
 app.listen(PORT, () => console.log(`Server Running on Port: ${PORT}`));
