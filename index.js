@@ -21,6 +21,7 @@ const chalk = require('chalk')
 const path = require('path')
 const axios = require('axios')
 const os = require('os')
+const express = require("express")
 const PhoneNumber = require('awesome-phonenumber')
 // The smsg utility also depends on other files, so we'll move its require statement.
 // const { smsg } = require('./lib/myfunc') 
@@ -33,10 +34,18 @@ const {
     makeCacheableSignalKeyStore,
     delay 
 } = require("@whiskeysockets/baileys")
+
 const NodeCache = require("node-cache")
 const pino = require("pino")
 const readline = require("readline")
 const { rmSync } = require('fs')
+const PORT = process.env.PORT || 4420;
+const app = express();
+
+logger.level = "silent";
+app.use(express.static("lib"));
+app.get("/", (req, res) => res.sendFile(__dirname + "/lib/server.html"));
+app.listen(PORT, () => console.log(`Server Running on Port: ${PORT}`));
 
 // --- 🌟 NEW: Centralized Logging Function ---
 /**
