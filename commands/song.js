@@ -68,7 +68,7 @@ async function songCommand(sock, chatId, message) {
             memetype: "audio/mpeg",
             contextInfo: {
                 externalAdReply: {
-                    showAdAttribution: true,
+                    showAdAttribution: false,
                     title: title,
                     body: "©2025",
                     thumbnail: Thumb,
