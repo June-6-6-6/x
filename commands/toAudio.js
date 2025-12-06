@@ -42,7 +42,7 @@ async function toAudioCommand(sock, chatId, message) {
     if (!isVideo && !isAudio && !isDocument) {
       await sock.sendMessage(chatId, { 
         text: "⚠️ Only works on *video* or *audio* messages!" 
-      });
+      },{ quoted: message });
       return;
     }
 
