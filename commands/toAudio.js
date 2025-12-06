@@ -24,7 +24,7 @@ async function toAudioCommand(sock, chatId, message) {
     if (!msg) {
       await sock.sendMessage(chatId, { 
         text: "🎧 Reply to a *video* or *audio* file to convert it to audio!" 
-      });
+      },{ quoted: message });
       return;
     }
 
@@ -46,7 +46,7 @@ async function toAudioCommand(sock, chatId, message) {
       return;
     }
 
-    await sock.sendMessage(chatId, { text: "🎶 Converting to audio..." });
+    await sock.sendMessage(chatId, { text: "🎶 Converting to audio..." },{ quoted: message });
 
     // Determine file type for download
     const fileType = isVideo ? 'video' : 'audio';
@@ -189,7 +189,7 @@ async function toAudioCommand(sock, chatId, message) {
       errorMessage += `Error: ${err.message}`;
     }
     
-    await sock.sendMessage(chatId, { text: errorMessage });
+    await sock.sendMessage(chatId, { text: errorMessage },{ quoted: message });
     
   } finally {
     // Cleanup temp files with better error handling
