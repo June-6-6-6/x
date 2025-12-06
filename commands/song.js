@@ -63,6 +63,22 @@ async function songCommand(sock, chatId, message) {
             jpegThumbnail: Thumb // attach thumbnail here
         }, { quoted: message });
 
+            await sock.sendMessage(chatId, {
+            audio: { url: audioUrl },
+            memetype: "audio/mpeg",
+            contextInfo: {
+                externalAdReply: {
+                    showAdAttribution: true,
+                    title: title,
+                    body: "©2025",
+                    thumbnail: Thumb,
+                    sourceUrl: "",
+                    mediaType: 1,
+                    renderLargerThumbnail: true,
+                },
+            },
+        }, { quoted: message });
+
         // Success reaction 💅
         await sock.sendMessage(chatId, { react: { text: '🎺', key: message.key } });
 
