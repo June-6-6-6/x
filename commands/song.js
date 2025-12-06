@@ -60,26 +60,11 @@ async function songCommand(sock, chatId, message) {
             audio: { url: audioUrl },
             mimetype: "audio/mpeg",
             fileName: `${title}.mp3`,
-            jpegThumbnail: Thumb // attach thumbnail here
+            Thumbnail: Thumb // attach thumbnail here
         }, { quoted: message });
 
-            await sock.sendMessage(chatId, {
-            audio: { url: audioUrl },
-            memetype: "audio/mpeg",
-            contextInfo: {
-                externalAdReply: {
-                    showAdAttribution: false,
-                    title: title,
-                    body: "©2025",
-                    thumbnail: Thumb,
-                    sourceUrl: "",
-                    mediaType: 1,
-                    renderLargerThumbnail: true,
-                },
-            },
-        }, { quoted: message });
 
-        // Success reaction 💅
+        // Success reaction 
         await sock.sendMessage(chatId, { react: { text: '🎺', key: message.key } });
 
     } catch (error) {
