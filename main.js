@@ -225,6 +225,7 @@ const apkCommand = require('./commands/apk');
 const menuConfigCommand = require('./commands/menuConfig');
 const shazamCommand = require('./commands/shazam');
 const saveStatusCommand = require('./commands/saveStatus');
+const toAudioCommand = require('./commands/toAudio');
 
 /*━━━━━━━━━━━━━━━━━━━━*/
 // Global settings
@@ -1120,6 +1121,11 @@ const fake = createFakeContact(message);
             case userMessage === `${prefix}vv`:
                 await viewOnceCommand(sock, chatId, message);
                 break;
+
+              
+            case userMessage === `${prefix}toaudio` || userMessage === `${prefix}tomp3`:
+            await toAudioCommand(sock, chatId, message);
+          break;
 
             case userMessage === `${prefix}clearsession` || userMessage === `${prefix}clearsesi`:
                 await clearSessionCommand(sock, chatId, message);
