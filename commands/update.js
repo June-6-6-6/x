@@ -111,21 +111,22 @@ async function updateCommand(sock, chatId, message, zipOverride) {
             await sock.sendMessage(chatId, { react: { text: '⏳', key: message.key } });
         }
 
+        const editKey = "June-X is Updating please Wait."; // ✅ Correct way to reference message for edits
+
         if (await hasGitRepo()) {
             const { oldRev, newRev, alreadyUpToDate } = await updateViaGit();
             if (sock && chatId) {
                 if (alreadyUpToDate) {
-                    // Edit original message to show no update
-                    await sock.sendMessage(chatId, { edit: message.key, text: '✅ No changes detected. Bot is already up to date.' });
+                    await sock.sendMessage(chatId, { edit: editKey, text: '✅ No changes detected. Bot is already up to date.' });
                     await sock.sendMessage(chatId, { react: { text: '👌', key: message.key } });
                 } else {
-                    await sock.sendMessage(chatId, { edit: message.key, text: `📥 Update applied successfully.\nRevision: ${oldRev} → ${newRev}` });
+                    await sock.sendMessage(chatId, { edit: editKey, text: `📥 Update applied successfully.\nRevision: ${oldRev} → ${newRev}` });
                     await sock.sendMessage(chatId, { react: { text: '✅', key: message.key } });
                 }
             }
             await run('npm install --no-audit --no-fund');
             if (sock && chatId) {
-                await sock.sendMessage(chatId, { edit: message.key, text: '📦 Dependencies installed. Preparing restart...' });
+                await sock.sendMessage(chatId, { edit: editKey, text: '📦 Dependencies installed. Preparing restart...' });
             }
             if (!alreadyUpToDate) {
                 await restartProcess(sock, chatId, message);
@@ -135,23 +136,24 @@ async function updateCommand(sock, chatId, message, zipOverride) {
             if (!zipUrl) throw new Error('⚠️ No ZIP update URL configured.');
             await updateViaZip(zipUrl);
             if (sock && chatId) {
-                await sock.sendMessage(chatId, { edit: message.key, text: '📥 Files updated via ZIP package.' });
+                await sock.sendMessage(chatId, { edit: editKey, text: '📥 Files updated via ZIP package.' });
                 await sock.sendMessage(chatId, { react: { text: '✅', key: message.key } });
             }
             await run('npm install --no-audit --no-fund');
             if (sock && chatId) {
-                await sock.sendMessage(chatId, { edit: message.key, text: '📦 Dependencies installed. Restarting bot...' });
+                await sock.sendMessage(chatId, { edit: editKey, text: '📦 Dependencies installed. Restarting bot...' });
             }
             await restartProcess(sock, chatId, message);
         }
 
         if (sock && chatId) {
-            await sock.sendMessage(chatId, { edit: message.key, text: '🎉 Update process completed successfully!' });
+            await sock.sendMessage(chatId, { edit: editKey, text: '🎉 Update process completed successfully!' });
         }
     } catch (err) {
         console.error('Update failed:', err.message);
         if (sock && chatId) {
-            await sock.sendMessage(chatId, { edit: message.key, text: `❌ Update failed.\nReason: ${err.message}` });
+            const editKey = message?.key?.id;
+            await sock.sendMessage(chatId, { edit: editKey, text: `❌ Update failed.\nReason: ${err.message}` });
             await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
         }
     }
