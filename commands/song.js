@@ -2,6 +2,7 @@ const yts = require('yt-search');
 const axios = require('axios');
 const fetch = require('node-fetch'); // to fetch thumbnail image
 
+
 async function songCommand(sock, chatId, message) {
     try {
         // Initial reaction 🎵
@@ -40,6 +41,7 @@ async function songCommand(sock, chatId, message) {
 
         const audioUrl = apiData.result.downloadUrl;
         const title = apiData.result.title;
+        const Thumb = apiData.result.thumbnail;
 
         // Fetch thumbnail image and convert to buffer
         let thumbBuffer = null;
@@ -58,7 +60,7 @@ async function songCommand(sock, chatId, message) {
             audio: { url: audioUrl },
             mimetype: "audio/mpeg",
             fileName: `${title}.mp3`,
-            jpegThumbnail: thumbBuffer // attach thumbnail here
+            jpegThumbnail: Thumb // attach thumbnail here
         }, { quoted: message });
 
         // Success reaction 💅
