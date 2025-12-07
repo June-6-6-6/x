@@ -111,13 +111,16 @@ async function updateCommand(sock, chatId, message, zipOverride) {
             await sock.sendMessage(chatId, { react: { text: '⏳', key: message.key } });
         }
 
-        const editKey = await sock.sendMessage(chatId, { text: 'updating bot instance'},{quoted: message}); // ✅ Correct way to reference message for edits
+ // ✅ Correct way to reference message for edits
+const editKey = "wait....";
+        
+await sock.sendMessage(chatId, { text: 'ℹ️ updating bot instance'},{quoted: message});
 
         if (await hasGitRepo()) {
             const { oldRev, newRev, alreadyUpToDate } = await updateViaGit();
             if (sock && chatId) {
                 if (alreadyUpToDate) {
-                    await sock.sendMessage(chatId, { edit: editKey, text: '✅ No changes detected. Bot is already up to date.' });
+                  
                     await sock.sendMessage(chatId, { react: { text: '👌', key: message.key } });
                 } else {
                     await sock.sendMessage(chatId, { edit: editKey, text: `📥 Update applied successfully.\nRevision: ${oldRev} → ${newRev}` });
