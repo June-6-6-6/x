@@ -106,7 +106,9 @@ async function updateCommand(sock, chatId, message, zipOverride) {
     try {
         if (sock && chatId) {
             // Initial message
-            await sock.sendMessage(chatId, { text: '⬇️ Initiating update sequence...' }, { quoted: message });
+            await sock.sendMessage(chatId, { text: '⬇️ Initiating update Bot sequence...' });
+            
+            await sock.sendMessage(chatId, { text: '🔄 ~Restarting bot process... Please wait.~' }, { quoted: message });
             // Reaction to original message
             await sock.sendMessage(chatId, { react: { text: '⏳', key: message.key } });
         }
@@ -114,7 +116,7 @@ async function updateCommand(sock, chatId, message, zipOverride) {
  // ✅ Correct way to reference message for edits
 const editKey = "wait....";
         
-await sock.sendMessage(chatId, { edit: editKey, text: 'ℹ️ updating bot instance'},{quoted: message});
+await sock.sendMessage(chatId, { text: 'ℹ️ _updating inprogress please wait_'},{quoted: message});
 
         if (await hasGitRepo()) {
             const { oldRev, newRev, alreadyUpToDate } = await updateViaGit();
