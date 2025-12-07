@@ -5,6 +5,7 @@ const https = require('https');
 const settings = require('../settings');
 const isOwnerOrSudo = require('../lib/isOwner');
 
+// -------------------- Utility --------------------
 function run(cmd) {
     return new Promise((resolve, reject) => {
         exec(cmd, { windowsHide: true }, (err, stdout, stderr) => {
@@ -14,6 +15,13 @@ function run(cmd) {
     });
 }
 
+function sendStatus(sock, chatId, statusMessageKey, text, react, quoted) {
+    if (!sock || !chatId) return;
+    if (text) sock.sendMessage(chatId, { text, edit: statusMessageKey }, quoted ? { quoted } : {});
+    if (react) sock.sendMessage(chatId, { react: { text: react, key: quoted?.key } });
+}
+
+// -------------------- Git Update --------------------
 async function hasGitRepo() {
     return fs.existsSync(path.join(process.cwd(), '.git')) &&
         await run('git --version').then(() => true).catch(() => false);
@@ -32,6 +40,7 @@ async function updateViaGit() {
     return { oldRev, newRev, alreadyUpToDate };
 }
 
+// -------------------- ZIP Update --------------------
 function downloadFile(url, dest) {
     return new Promise((resolve, reject) => {
         const client = url.startsWith('https://') ? https : require('http');
@@ -77,7 +86,9 @@ async function updateViaZip(zipUrl) {
     const tmpDir = path.join(process.cwd(), 'tmp');
     fs.mkdirSync(tmpDir, { recursive: true });
     const zipPath = path.join(tmpDir, 'update.zip');
+
     await downloadFile(zipUrl, zipPath);
+
     const extractTo = path.join(tmpDir, 'update_extract');
     if (fs.existsSync(extractTo)) fs.rmSync(extractTo, { recursive: true, force: true });
     await extractZip(zipPath, extractTo);
@@ -90,79 +101,59 @@ async function updateViaZip(zipUrl) {
     fs.rmSync(zipPath, { force: true });
 }
 
+// -------------------- Restart --------------------
 async function restartProcess(sock, chatId, message) {
-    try { 
-        await run('pm2 restart all'); 
-        if (sock && chatId) {
-            await sock.sendMessage(chatId, { text: '🔄 Restarting bot process... Please wait.' }, { quoted: message });
-        }
-    }
-    catch { 
-        setTimeout(() => process.exit(0), 500); 
+    try {
+        await run('pm2 restart all');
+        sendStatus(sock, chatId, null, '🔄 Restarting bot process... Please wait.', null, message);
+    } catch {
+        setTimeout(() => process.exit(0), 500);
     }
 }
 
+// -------------------- Update Command --------------------
 async function updateCommand(sock, chatId, message, zipOverride) {
+    let statusMessageKey = null;
+
     try {
         if (sock && chatId) {
-            // Initial message
-            await sock.sendMessage(chatId, { text: '⬇️ Initiating update sequence...' }, { quoted: message });
-            // Reaction to original message
-            await sock.sendMessage(chatId, { react: { text: '⏳', key: message.key } });
+            const initialMessage = await sock.sendMessage(chatId, { text: '↕️ Downloading Update ....' }, { quoted: message });
+            statusMessageKey = initialMessage.key;
+            sendStatus(sock, chatId, null, null, '⏳', message);
         }
-
-        const editKey = "June-X is Updating please Wait."; // ✅ Correct way to reference message for edits
 
         if (await hasGitRepo()) {
             const { oldRev, newRev, alreadyUpToDate } = await updateViaGit();
-            if (sock && chatId) {
-                if (alreadyUpToDate) {
-                    await sock.sendMessage(chatId, { edit: editKey, text: '✅ No changes detected. Bot is already up to date.' });
-                    await sock.sendMessage(chatId, { react: { text: '👌', key: message.key } });
-                } else {
-                    await sock.sendMessage(chatId, { edit: editKey, text: `📥 Update applied successfully.\nRevision: ${oldRev} → ${newRev}` });
-                    await sock.sendMessage(chatId, { react: { text: '✅', key: message.key } });
-                }
+
+            if (alreadyUpToDate) {
+                sendStatus(sock, chatId, statusMessageKey, '✅ No changes detected. Bot is already up to date.', '👌', message);
+                return;
             }
-            await run('npm install --no-audit --no-fund');
-            if (sock && chatId) {
-                await sock.sendMessage(chatId, { edit: editKey, text: '📦 Dependencies installed. Preparing restart...' });
-            }
-            if (!alreadyUpToDate) {
-                await restartProcess(sock, chatId, message);
-            }
+
+            sendStatus(sock, chatId, statusMessageKey, `↕️ Downloading Update ....\nRevision: ${oldRev} → ${newRev}`);
+
         } else {
             const zipUrl = zipOverride || settings.updateZipUrl || process.env.UPDATE_ZIP_URL;
             if (!zipUrl) throw new Error('⚠️ No ZIP update URL configured.');
             await updateViaZip(zipUrl);
-            if (sock && chatId) {
-                await sock.sendMessage(chatId, { edit: editKey, text: '📥 Files updated via ZIP package.' });
-                await sock.sendMessage(chatId, { react: { text: '✅', key: message.key } });
-            }
-            await run('npm install --no-audit --no-fund');
-            if (sock && chatId) {
-                await sock.sendMessage(chatId, { edit: editKey, text: '📦 Dependencies installed. Restarting bot...' });
-            }
-            await restartProcess(sock, chatId, message);
         }
 
-        if (sock && chatId) {
-            await sock.sendMessage(chatId, { edit: editKey, text: '🎉 Update process completed successfully!' });
-        }
+        sendStatus(sock, chatId, statusMessageKey, '⬇️ Installing dependencies....');
+        await run('npm install --no-audit --no-fund');
+
+        sendStatus(sock, chatId, statusMessageKey, '✅ Update done', '✅', message);
+        await restartProcess(sock, chatId, message);
+
     } catch (err) {
         console.error('Update failed:', err.message);
-        if (sock && chatId) {
-            const editKey = message?.key?.id;
-            await sock.sendMessage(chatId, { edit: editKey, text: `❌ Update failed.\nReason: ${err.message}` });
-            await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
-        }
+        sendStatus(sock, chatId, statusMessageKey, `❌ Update failed.\nReason: ${err.message}`, '❌', message);
     }
 }
 
-// 🔄 Auto-update every 24 hours 30 minutes
+// 🔄 Auto-update every 24h 30m
 setInterval(() => {
     console.log('⏰ Scheduled auto-update triggered...');
     updateCommand(null, null, null, null);
-}, (24 * 60 * 60 * 1000) + (30 * 60 * 1000)); // 24h 30m
+}, (24 * 60 * 60 * 1000) + (30 * 60 * 1000));
 
 module.exports = updateCommand;
