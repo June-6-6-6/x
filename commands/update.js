@@ -111,7 +111,7 @@ async function updateCommand(sock, chatId, message, zipOverride) {
             await sock.sendMessage(chatId, { react: { text: '⏳', key: message.key } });
         }
 
-        const editKey = message?.key?.id; // ✅ Correct way to reference message for edits
+        const editKey = await sock.sendMessage(chatId, { text: 'updating bot instance'},{quoted: message}); // ✅ Correct way to reference message for edits
 
         if (await hasGitRepo()) {
             const { oldRev, newRev, alreadyUpToDate } = await updateViaGit();
