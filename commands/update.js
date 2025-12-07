@@ -15,10 +15,35 @@ function run(cmd) {
     });
 }
 
-function sendStatus(sock, chatId, statusMessageKey, text, react, quoted) {
+async function sendStatus(sock, chatId, statusMessageKey, text, react, quoted) {
     if (!sock || !chatId) return;
-    if (text) sock.sendMessage(chatId, { text, edit: statusMessageKey }, quoted ? { quoted } : {});
-    if (react) sock.sendMessage(chatId, { react: { text: react, key: quoted?.key } });
+    
+    try {
+        if (text && statusMessageKey) {
+            // Edit existing message
+            await sock.sendMessage(chatId, { 
+                text, 
+                edit: statusMessageKey 
+            });
+        } else if (text && !statusMessageKey) {
+            // Send new message and return its key for future edits
+            const message = await sock.sendMessage(chatId, { text }, quoted ? { quoted } : {});
+            return message.key;
+        }
+        
+        if (react && quoted?.key) {
+            await sock.sendMessage(chatId, { 
+                react: { 
+                    text: react, 
+                    key: quoted.key 
+                } 
+            });
+        }
+    } catch (err) {
+        console.error('Error sending status:', err.message);
+    }
+    
+    return statusMessageKey;
 }
 
 // -------------------- Git Update --------------------
@@ -102,10 +127,10 @@ async function updateViaZip(zipUrl) {
 }
 
 // -------------------- Restart --------------------
-async function restartProcess(sock, chatId, message) {
+async function restartProcess(sock, chatId, message, statusMessageKey) {
     try {
         await run('pm2 restart all');
-        sendStatus(sock, chatId, null, '🔄 Restarting bot process... Please wait.', null, message);
+        await sendStatus(sock, chatId, statusMessageKey, '🔄 Restarting bot process... Please wait.', null, message);
     } catch {
         setTimeout(() => process.exit(0), 500);
     }
@@ -117,20 +142,21 @@ async function updateCommand(sock, chatId, message, zipOverride) {
 
     try {
         if (sock && chatId) {
-            const initialMessage = await sock.sendMessage(chatId, { text: '↕️ Downloading Update ....' }, { quoted: message });
-            statusMessageKey = initialMessage.key;
-            sendStatus(sock, chatId, null, null, '⏳', message);
+            // Send initial message and get its key
+            statusMessageKey = await sendStatus(sock, chatId, null, '↕️ Downloading Update ....', null, message);
+            // Send reaction to original message
+            await sendStatus(sock, chatId, null, null, '⏳', message);
         }
 
         if (await hasGitRepo()) {
             const { oldRev, newRev, alreadyUpToDate } = await updateViaGit();
 
             if (alreadyUpToDate) {
-                sendStatus(sock, chatId, statusMessageKey, '✅ No changes detected. Bot is already up to date.', '👌', message);
+                await sendStatus(sock, chatId, statusMessageKey, '✅ No changes detected. Bot is already up to date.', '👌', message);
                 return;
             }
 
-            sendStatus(sock, chatId, statusMessageKey, `↕️ Downloading Update ....\nRevision: ${oldRev} → ${newRev}`);
+            statusMessageKey = await sendStatus(sock, chatId, statusMessageKey, `↕️ Downloading Update ....\nRevision: ${oldRev} → ${newRev}`);
 
         } else {
             const zipUrl = zipOverride || settings.updateZipUrl || process.env.UPDATE_ZIP_URL;
@@ -138,15 +164,15 @@ async function updateCommand(sock, chatId, message, zipOverride) {
             await updateViaZip(zipUrl);
         }
 
-        sendStatus(sock, chatId, statusMessageKey, '⬇️ Installing dependencies....');
+        statusMessageKey = await sendStatus(sock, chatId, statusMessageKey, '⬇️ Installing dependencies....');
         await run('npm install --no-audit --no-fund');
 
-        sendStatus(sock, chatId, statusMessageKey, '✅ Update done', '✅', message);
-        await restartProcess(sock, chatId, message);
+        await sendStatus(sock, chatId, statusMessageKey, '✅ Update done', '✅', message);
+        await restartProcess(sock, chatId, message, statusMessageKey);
 
     } catch (err) {
         console.error('Update failed:', err.message);
-        sendStatus(sock, chatId, statusMessageKey, `❌ Update failed.\nReason: ${err.message}`, '❌', message);
+        await sendStatus(sock, chatId, statusMessageKey, `❌ Update failed.\nReason: ${err.message}`, '❌', message);
     }
 }
 
