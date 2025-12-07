@@ -9,7 +9,7 @@ const detectPlatform = () => {
   if (process.env.PREFIX && process.env.PREFIX.includes("termux")) return "📱 Termux";
   if (process.env.PORTS && process.env.CYPHERX_HOST_ID) return "🌀 CypherX Platform";
   if (process.env.P_SERVER_UUID) return "🖥️ Panel";
-  if (process.env.LXC) return "📦 Linux Container (LXC)";
+  if (process.env.LXC) return "🐦‍⬛ Linux Container (LXC)";
   
   switch (os.platform()) {
     case "win32": return "🪟 Windows";
@@ -45,10 +45,9 @@ async function aliveCommand(sock, chatId, message) {
     const hostName = detectPlatform();
 
   const message1 = `📑 *UPTIME STATUS*
-  
-☁️ Platform: ${hostName}
-⚙️ Version: ${settings.version || 'undefined !'}
-🐋 Powered by: ${settings.botName || ''}
+> ☁️ Platform: ${hostName}
+> ⚙️ Version: ${settings.version || 'undefined !'}
+> 🐋 Powered by: ${settings.botName || ''}
 > ⏱️ Uptime: ${formattedUptime}`;
 
     // Fake contact for quoting
