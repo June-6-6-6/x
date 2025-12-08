@@ -1,38 +1,41 @@
 const fetch = require('node-fetch');
 
 async function githubCommand(sock, chatId, message) {
-    try {
-        // Add loading reaction
+    
+    // Get text query from message type    
+    const text = message.message?.conversation || 
+                 message.message?.extendedTextMessage?.text;
+    const parts = text.split(' ');
+    const command = parts[0].toLowerCase();
+    const query = parts.slice(1).join(' ').trim();
+
+    // Check if user provided a GitHub repository link
+    if (!query) {
         await sock.sendMessage(chatId, {
-            react: { text: '🛰️', key: message.key }
-        });
+            text: "*🔗 Please provide a GitHub repository link.*\n\n_Usage:_\n.gh https://github.com/username/repository"
+        }, { quoted: message });
+        return;
+    }
 
-        const text = message.message?.conversation || 
-                     message.message?.extendedTextMessage?.text;
+    // Check if it's a GitHub link
+    if (!query.includes('github.com')) {
+        await sock.sendMessage(chatId, {
+            text: "*❌ Invalid GitHub URL*\n\nPlease provide a valid GitHub repository URL."
+        }, { quoted: message });
+        return;
+    }
 
-        // Validate input
-        if (!text) {
-            await sock.sendMessage(chatId, { 
-                text: "Please provide a GitHub repository link\n\nExample: https://github.com/username/repository"
-            });
-            return;
-        }
-
-        // Check if it's a GitHub link
-        if (!text.includes('github.com')) {
-            await sock.sendMessage(chatId, { 
-                text: "Is that a GitHub repo link?! Please provide a valid GitHub repository URL."
-            }, { quoted: message });
-            return;
-        }
+    try {
+        // React loading
+        await sock.sendMessage(chatId, { react: { text: "🛰️", key: message.key } });
 
         // Extract repository information
         let regex1 = /(?:https|git)(?::\/\/|@)github\.com[\/:]([^\/:]+)\/(.+)/i;
-        let match = text.match(regex1);
+        let match = query.match(regex1);
         
         if (!match || match.length < 3) {
-            await sock.sendMessage(chatId, { 
-                text: "Invalid GitHub repository URL format."
+            await sock.sendMessage(chatId, {
+                text: "*❌ Invalid GitHub repository URL format.*"
             }, { quoted: message });
             return;
         }
@@ -47,8 +50,8 @@ async function githubCommand(sock, chatId, message) {
         let response = await fetch(url, { method: 'HEAD' });
         
         if (!response.ok) {
-            await sock.sendMessage(chatId, { 
-                text: "Error: Repository not found or inaccessible."
+            await sock.sendMessage(chatId, {
+                text: "*❌ Repository not found or inaccessible.*"
             }, { quoted: message });
             return;
         }
@@ -56,8 +59,8 @@ async function githubCommand(sock, chatId, message) {
         let contentDisposition = response.headers.get('content-disposition');
         
         if (!contentDisposition) {
-            await sock.sendMessage(chatId, { 
-                text: "Error: Could not retrieve file information."
+            await sock.sendMessage(chatId, {
+                text: "*❌ Could not retrieve file information.*"
             }, { quoted: message });
             return;
         }
@@ -65,31 +68,49 @@ async function githubCommand(sock, chatId, message) {
         let filenameMatch = contentDisposition.match(/attachment; filename=(.*)/);
         
         if (!filenameMatch || !filenameMatch[1]) {
-            await sock.sendMessage(chatId, { 
-                text: "Error: Could not extract filename."
+            await sock.sendMessage(chatId, {
+                text: "*❌ Could not extract filename.*"
             }, { quoted: message });
             return;
         }
 
         let filename = filenameMatch[1];
         
-        // Send the zip file
-        await sock.sendMessage(chatId, { 
-            document: { url: url }, 
-            fileName: filename + '.zip', 
-            mimetype: 'application/zip'
-        }, { quoted: message });
+        // Construct caption
+        const caption = `
+📂 *Repository:* ${user3}/${repo}
+🔗 *Download Link:* ${url}
+`.trim();
 
-        // Add success reaction
+        // React upload
+        await sock.sendMessage(chatId, { react: { text: "⬆️", key: message.key } });
+
         await sock.sendMessage(chatId, {
-            react: { text: '✅', key: message.key }
+            document: { url: url },
+            fileName: filename + '.zip',
+            mimetype: 'application/zip',
+            caption,
+            contextInfo: {
+                externalAdReply: {
+                    title: `${user3}/${repo}`,
+                    body: "GitHub Repository",
+                    mediaType: 1,
+                    sourceUrl: `https://github.com/${user3}/${repo}`,
+                    thumbnailUrl: `https://github.com/${user3}.png`,
+                    renderLargerThumbnail: true,
+                    showAdAttribution: false
+                }
+            }, quoted: message 
         });
 
-    } catch (err) {
-        console.error('GitHub download error:', err);
+        // Final reaction
+        await sock.sendMessage(chatId, { react: { text: "✅", key: message.key } });
+
+    } catch (e) {
+        console.error('GitHub download error:', e);
         
-        await sock.sendMessage(chatId, { 
-            text: "❎ Error occurred while processing the GitHub repository"
+        await sock.sendMessage(chatId, {
+            text: "*❌ Error occurred while processing the GitHub repository*"
         }, { quoted: message });
     }
 }
