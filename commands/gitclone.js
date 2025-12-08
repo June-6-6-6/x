@@ -1,4 +1,4 @@
-
+const fetch = require('node-fetch');
 
 
 async function gitcloneCommand(sock, chatId, message) {
@@ -65,7 +65,7 @@ async function gitcloneCommand(sock, chatId, message) {
                 document: { url },
                 fileName: filename.endsWith('.zip') ? filename : filename + '.zip',
                 mimetype: 'application/zip',
-                caption: `📦 *Repository Cloned*\n👤 *Author:* ${user}\n📁 *Repo:* ${cleanRepo}\n🔗 *Downloaded via June MD*`,
+                caption: `👤 *Author:* ${user}\n📁 *Repo:* ${cleanRepo}\n🔗 *Downloaded via JUNE-X*`,
                 contextInfo: {
                     externalAdReply: {
                         title: cleanRepo,
