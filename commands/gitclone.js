@@ -1,8 +1,12 @@
 async function gitcloneCommand(sock, chatId, message) {
   try {
     const axios = require('axios');
-    const args = message.body.split(' ').slice(1);
-    const reply = (text) => sock.sendMessage(chatId, { text: text }, { quoted: message });
+
+    // Safely extract text from message
+    const body = message.body || message.text || message.conversation || "";
+    const args = body.trim().split(' ').slice(1);
+
+    const reply = (text) => sock.sendMessage(chatId, { text }, { quoted: message });
 
     if (!args[0]) return reply("❌ Provide a GitHub repo link.");
     if (!args[0].includes('github.com')) return reply("❌ Not a valid GitHub link!");
