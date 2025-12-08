@@ -226,6 +226,7 @@ const menuConfigCommand = require('./commands/menuConfig');
 const shazamCommand = require('./commands/shazam');
 const saveStatusCommand = require('./commands/saveStatus');
 const toAudioCommand = require('./commands/toAudio');
+const gitcloneCommand = require('./commands/gitclone');
 
 /*━━━━━━━━━━━━━━━━━━━━*/
 // Global settings
@@ -996,9 +997,14 @@ const fake = createFakeContact(message);
                 }
                 break;
                 
-            /*━━━━━━━━━━━━━━━━━━━━*/
+      /*━━━━━━━━━━━━━━━━━━━━*/
             // GitHub
-            /*━━━━━━━━━━━━━━━━━━━━*/
+     /*━━━━━━━━━━━━━━━━━━━━*/
+              
+case userMessage === `${prefix}clone` ||      userMessage === `${prefix}gitclone`:
+                await gitcloneCommand(sock, chatId, message);
+                break;
+              
             case userMessage === `${prefix}git`:
             case userMessage === `${prefix}github`:
             case userMessage === `${prefix}sc`:
