@@ -32,7 +32,7 @@ async function gitcloneCommand(sock, chatId, message) {
             return;
         }
         
-        const [, user, repo] = match;
+        const [user, repo] = match;
         const cleanRepo = repo.replace(/\.git$/, '');
         const zipUrl = `https://api.github.com/repos/${user}/${cleanRepo}/zipball`;
         
