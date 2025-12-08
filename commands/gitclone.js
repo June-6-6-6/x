@@ -1,84 +1,119 @@
 const fetch = require('node-fetch');
-const fs = require('fs');
-const path = require('path');
 
-async function githubCommand(sock, chatId, message) {
-    const text = message.message?.conversation || 
-                 message.message?.extendedTextMessage?.text;
-    const parts = text.split(' ');
-    const query = parts.slice(1).join(' ').trim();
+async function gitcloneCommand(sock, chatId, message) {
+    const text = message.message?.conversation ||
+                 message.message?.extendedTextMessage?.text ||
+                 message.text ||
+                 message.body || '';
 
-    // Validate input
-    if (!query || !query.includes('github.com')) {
-        await sock.sendMessage(chatId, { 
-            text: "❌ Please provide a valid GitHub repository URL.\n\nUsage:\n.gitclone https://github.com/user.../repo..." 
+    if (!text.trim()) {
+        return sock.sendMessage(chatId, {
+            text: "*🔗 Please provide a GitHub repository link.*\n\n_Usage:_\n.gitclone https://github.com/user/repo"
         }, { quoted: message });
-        return;
     }
 
-    try {
-        // React: loading
-        await sock.sendMessage(chatId, { react: { text: "🛰️", key: message.key } });
+    const regex = /github\.com[:\/]([^\/:]+)\/([^\/\s]+)(?:\.git)?/gi;
+    const matches = [...text.matchAll(regex)];
 
-        // Extract user/repo
-        const regex = /github\.com[\/:]([^\/:]+)\/([^\/:]+)/i;
-        const match = query.match(regex);
-        if (!match) {
-            await sock.sendMessage(chatId, { text: "❌ Invalid GitHub repository URL format." }, { quoted: message });
-            return;
-        }
+    if (matches.length === 0) {
+        return sock.sendMessage(chatId, {
+            text: "*❌ Invalid GitHub repository link!*\n\n_Please provide a valid GitHub URL._"
+        }, { quoted: message });
+    }
 
-        let [, user3, repo] = match;
-        repo = repo.replace(/.git$/, '');
-        const url = `https://api.github.com/repos/${user3}/${repo}/zipball`;
+    await sock.sendMessage(chatId, { react: { text: "⬇️", key: message.key } });
 
-        // Download repo zipball
-        const response = await fetch(url);
-        if (!response.ok) throw new Error("Repo not found or inaccessible");
+    let successCount = 0;
+    let errorCount = 0;
 
-        // Save to temp file
-        const tempPath = path.join(__dirname, `${repo}.zip`);
-        const fileStream = fs.createWriteStream(tempPath);
-        await new Promise((resolve, reject) => {
-            response.body.pipe(fileStream);
-            response.body.on("error", reject);
-            fileStream.on("finish", resolve);
-        });
+    for (const match of matches) {
+        const [, user, repo] = match;
+        const cleanRepo = repo.replace(/\.git$/, '').replace(/\/$/, '');
+        const apiUrl = `https://api.github.com/repos/${user}/${cleanRepo}/zipball`;
 
-        const caption = `📂 *Repository:* ${user3}/${repo}\n🔗 *Download Link:* ${url}`;
+        try {
+            let filename = null;
+            let attempt = 0;
+            let success = false;
 
-        // React: uploading
-        await sock.sendMessage(chatId, { react: { text: "⬆️", key: message.key } });
+            while (attempt < 3 && !success) {
+                try {
+                    const method = attempt === 0 ? 'HEAD' : 'GET';
+                    const response = await fetch(apiUrl, { method });
 
-        // Send file
-        await sock.sendMessage(chatId, {
-            document: { url: tempPath },
-            fileName: `${repo}.zip`,
-            mimetype: 'application/zip',
-            caption,
-            contextInfo: {
-                externalAdReply: {
-                    title: `${user3}/${repo}`,
-                    body: "GitHub Repository",
-                    mediaType: 1,
-                    sourceUrl: `https://github.com/${user3}/${repo}`,
-                    thumbnailUrl: `https://github.com/${user3}.png`,
-                    renderLargerThumbnail: true
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                    const contentDisposition = response.headers.get('content-disposition');
+                    if (contentDisposition) {
+                        const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+                        if (filenameMatch) {
+                            filename = filenameMatch[1].endsWith('.zip') ? filenameMatch[1] : filenameMatch[1] + '.zip';
+                            success = true;
+                        }
+                    }
+
+                    if (!success && method === 'GET') {
+                        // Fallback filename if headers missing
+                        filename = `${cleanRepo}.zip`;
+                        success = true;
+                    }
+
+                } catch (err) {
+                    attempt++;
+                    if (attempt < 3) {
+                        await sock.sendMessage(chatId, {
+                            text: `*⚠️ Retry ${attempt} for ${user}/${cleanRepo}...*`
+                        }, { quoted: message });
+                        await new Promise(res => setTimeout(res, attempt * 1000)); // backoff
+                    } else {
+                        throw err;
+                    }
                 }
             }
-        }, { quoted: message });
 
-        // React: success
-        await sock.sendMessage(chatId, { react: { text: "✅", key: message.key } });
+            if (!success) throw new Error('Failed to retrieve repository after retries');
 
-        // Clean up temp file
-        fs.unlink(tempPath, () => {});
-    } catch (e) {
-        console.error('GitHub download error:', e);
-        await sock.sendMessage(chatId, { 
-            text: "❌ Error occurred while processing the GitHub repository" 
+            await sock.sendMessage(chatId, { react: { text: "⬆️", key: message.key } });
+
+            await sock.sendMessage(chatId, {
+                document: { url: apiUrl },
+                fileName: filename,
+                mimetype: 'application/zip',
+                caption: `📦 *Repository Cloned*\n👤 *Author:* ${user}\n📁 *Repo:* ${cleanRepo}\n🔗 *Downloaded via June MD*`,
+                contextInfo: {
+                    externalAdReply: {
+                        title: cleanRepo,
+                        body: `GitHub - ${user}`,
+                        mediaType: 1,
+                        sourceUrl: `https://github.com/${user}/${cleanRepo}`,
+                        thumbnailUrl: `https://github.com/${user}.png`,
+                        renderLargerThumbnail: true
+                    }
+                }
+            }, { quoted: message });
+
+            successCount++;
+            if (matches.length > 1 && successCount < matches.length) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+        } catch (err) {
+            console.error('Download error:', err);
+            errorCount++;
+            await sock.sendMessage(chatId, {
+                text: `*❌ Error Downloading*\nRepository: ${user}/${cleanRepo}\nError: ${err.message}`
+            }, { quoted: message });
+        }
+    }
+
+    const finalReaction = successCount > 0 ? "✅" : "❌";
+    await sock.sendMessage(chatId, { react: { text: finalReaction, key: message.key } });
+
+    if (matches.length > 1) {
+        await sock.sendMessage(chatId, {
+            text: `*📊 Download Summary*\n✅ Success: ${successCount}\n❌ Failed: ${errorCount}\n🔗 Total: ${matches.length}`
         }, { quoted: message });
     }
 }
 
-module.exports = githubCommand;
+module.exports = gitcloneCommand;
