@@ -1,4 +1,5 @@
-const fetch = require('node-fetch');
+
+
 
 async function gitcloneCommand(sock, chatId, message) {
     // Extract text query from message
@@ -20,7 +21,7 @@ async function gitcloneCommand(sock, chatId, message) {
 
     if (matches.length === 0) {
         await sock.sendMessage(chatId, {
-            text: "*❌ Invalid GitHub repository link!*\n\n_Please provide  GitHub URL._\n usage:\n gitclone https://github.com/user/repo. "
+            text: "*❌ Invalid GitHub repository link!*\n\n_Please provide a valid GitHub URL._"
         }, { quoted: message });
         return;
     }
@@ -64,7 +65,7 @@ async function gitcloneCommand(sock, chatId, message) {
                 document: { url },
                 fileName: filename.endsWith('.zip') ? filename : filename + '.zip',
                 mimetype: 'application/zip',
-                caption: `👤 *Author:* ${user}\n📁 *Repo:* ${cleanRepo}\n🔗 *Downloaded by JUNE-X*`,
+                caption: `📦 *Repository Cloned*\n👤 *Author:* ${user}\n📁 *Repo:* ${cleanRepo}\n🔗 *Downloaded via June MD*`,
                 contextInfo: {
                     externalAdReply: {
                         title: cleanRepo,
