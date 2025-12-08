@@ -11,7 +11,7 @@ async function githubCommand(sock, chatId, message) {
     // Validate input
     if (!query || !query.includes('github.com')) {
         await sock.sendMessage(chatId, { 
-            text: "❌ Please provide a valid GitHub repository URL.\n\nUsage:\n.gh https://github.com/username/repository" 
+            text: "❌ Please provide a valid GitHub repository URL.\n\nUsage:\n.gitclone https://github.com/user.../repo..." 
         }, { quoted: message });
         return;
     }
