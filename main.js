@@ -1001,9 +1001,6 @@ const fake = createFakeContact(message);
             // GitHub
      /*━━━━━━━━━━━━━━━━━━━━*/
               
-case userMessage === `${prefix}clone` ||      userMessage === `${prefix}gitclone`:
-                await gitcloneCommand(sock, chatId, message);
-                break;
               
             case userMessage === `${prefix}git`:
             case userMessage === `${prefix}github`:
@@ -1058,6 +1055,10 @@ case userMessage === `${prefix}clone` ||      userMessage === `${prefix}gitclone
 
             case userMessage === `${prefix}flirt`:
                 await flirtCommand(sock, chatId, message);
+                break;
+              
+             case userMessage === `${prefix}gitclone`:
+                await gitcloneCommand(sock, chatId, message);
                 break;
 
             case userMessage.startsWith(`${prefix}character`):
