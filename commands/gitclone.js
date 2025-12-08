@@ -1,94 +1,84 @@
-// Get text query from message type    
-async function gitcloneCommand(sock, chatId, message) {
-  
-  const text = message.message?.conversation || message.message?.extendedTextMessage?.text;
-  const parts = text.split(' ');
-  const command = parts[0].toLowerCase();
-  const query = parts.slice(1).join(' ').trim();
+const fetch = require('node-fetch');
+const fs = require('fs');
+const path = require('path');
 
-  // Check if user provided a GitHub URL
-  if (!query) {
-    await sock.sendMessage(chatId, {
-      text: "*🔗 Please provide a GitHub repository link.*\n\n_Usage:_\n.gitclone https://github.com/username/repository"
-    }, { quoted: message });
-    return;
-  }
+async function githubCommand(sock, chatId, message) {
+    const text = message.message?.conversation || 
+                 message.message?.extendedTextMessage?.text;
+    const parts = text.split(' ');
+    const query = parts.slice(1).join(' ').trim();
 
-  try {
-    // React loading
-    await sock.sendMessage(chatId, { react: { text: "⬇️", key: message.key } });
-
-    const axios = require('axios');
-
-    // Validate GitHub URL
-    if (!query.includes('github.com')) {
-      await sock.sendMessage(chatId, {
-        text: "❌ *Not a valid GitHub link!*"
-      }, { quoted: message });
-      return;
+    // Validate input
+    if (!query || !query.includes('github.com')) {
+        await sock.sendMessage(chatId, { 
+            text: "❌ Please provide a valid GitHub repository URL.\n\nUsage:\n.gh https://github.com/username/repository" 
+        }, { quoted: message });
+        return;
     }
 
-    // Extract GitHub username and repository name
-    const regex = /(?:https|git)(?::\/\/|@)github\.com[\/:]([^\/:]+)\/(.+)/i;
-    const match = query.match(regex);
-    
-    if (!match || !match[1] || !match[2]) {
-      await sock.sendMessage(chatId, {
-        text: "⚠️ *Invalid repository format.*"
-      }, { quoted: message });
-      return;
-    }
+    try {
+        // React: loading
+        await sock.sendMessage(chatId, { react: { text: "🛰️", key: message.key } });
 
-    const user = match[1];
-    let repo = match[2].replace(/.git$/, '');
-    const zipUrl = `https://api.github.com/repos/${user}/${repo}/zipball`;
-
-    // Perform a HEAD request to get filename info
-    const head = await axios.head(zipUrl);
-    const contentDisp = head.headers['content-disposition'];
-    const filenameMatch = contentDisp?.match(/attachment; filename=(.*)/);
-    const filename = filenameMatch ? filenameMatch[1] : `${repo}.zip`;
-
-    // React upload
-    await sock.sendMessage(chatId, { react: { text: "⬆️", key: message.key } });
-
-    await sock.sendMessage(chatId, {
-      document: { url: zipUrl },
-      fileName: filename,
-      mimetype: 'application/zip',
-      caption: `📦 *Repository Cloned:* ${user}/${repo}`,
-      contextInfo: {
-        externalAdReply: {
-          title: `${user}/${repo}`,
-          body: "GitHub Repository Clone",
-          mediaType: 1,
-          sourceUrl: `https://github.com/${user}/${repo}`,
-          thumbnailUrl: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
-          renderLargerThumbnail: true,
-          showAdAttribution: false
+        // Extract user/repo
+        const regex = /github\.com[\/:]([^\/:]+)\/([^\/:]+)/i;
+        const match = query.match(regex);
+        if (!match) {
+            await sock.sendMessage(chatId, { text: "❌ Invalid GitHub repository URL format." }, { quoted: message });
+            return;
         }
-      }
-    }, { quoted: message });
 
-    // Final reaction
-    await sock.sendMessage(chatId, { react: { text: "✅", key: message.key } });
+        let [, user3, repo] = match;
+        repo = repo.replace(/.git$/, '');
+        const url = `https://api.github.com/repos/${user3}/${repo}/zipball`;
 
-  } catch (error) {
-    console.error("gitclone error:", error);
-    
-    let errorMessage = "❌ *Failed to clone repository.*";
-    if (error.response) {
-      if (error.response.status === 404) {
-        errorMessage = "❌ *Repository not found.*";
-      } else if (error.response.status === 403) {
-        errorMessage = "❌ *Rate limited. Try again later.*";
-      }
+        // Download repo zipball
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Repo not found or inaccessible");
+
+        // Save to temp file
+        const tempPath = path.join(__dirname, `${repo}.zip`);
+        const fileStream = fs.createWriteStream(tempPath);
+        await new Promise((resolve, reject) => {
+            response.body.pipe(fileStream);
+            response.body.on("error", reject);
+            fileStream.on("finish", resolve);
+        });
+
+        const caption = `📂 *Repository:* ${user3}/${repo}\n🔗 *Download Link:* ${url}`;
+
+        // React: uploading
+        await sock.sendMessage(chatId, { react: { text: "⬆️", key: message.key } });
+
+        // Send file
+        await sock.sendMessage(chatId, {
+            document: { url: tempPath },
+            fileName: `${repo}.zip`,
+            mimetype: 'application/zip',
+            caption,
+            contextInfo: {
+                externalAdReply: {
+                    title: `${user3}/${repo}`,
+                    body: "GitHub Repository",
+                    mediaType: 1,
+                    sourceUrl: `https://github.com/${user3}/${repo}`,
+                    thumbnailUrl: `https://github.com/${user3}.png`,
+                    renderLargerThumbnail: true
+                }
+            }
+        }, { quoted: message });
+
+        // React: success
+        await sock.sendMessage(chatId, { react: { text: "✅", key: message.key } });
+
+        // Clean up temp file
+        fs.unlink(tempPath, () => {});
+    } catch (e) {
+        console.error('GitHub download error:', e);
+        await sock.sendMessage(chatId, { 
+            text: "❌ Error occurred while processing the GitHub repository" 
+        }, { quoted: message });
     }
-    
-    await sock.sendMessage(chatId, {
-      text: `${errorMessage}\n\n_Error:_ ${error.message}`
-    }, { quoted: message });
-  }
 }
 
-module.exports = gitcloneCommand;
+module.exports = githubCommand;
