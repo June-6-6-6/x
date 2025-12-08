@@ -1,110 +1,94 @@
+// Get text query from message type    
 async function gitcloneCommand(sock, chatId, message) {
-    try {
-        await sock.sendMessage(chatId, {
-            react: { text: '⏳', key: message.key }
-        });
-        
-        const axios = require('axios');
-        const body = message.message?.conversation || message.message?.extendedTextMessage?.text || "";
-        const args = body.trim().split(' ').slice(1);
-        
-        if (!args[0]) {
-            await sock.sendMessage(chatId, {
-                text: "❌ Provide a GitHub repo link."
-            });
-            return;
-        }
-        
-        if (!args[0].includes('github.com')) {
-            await sock.sendMessage(chatId, {
-                text: "❌ Not a valid GitHub link!"
-            });
-            return;
-        }
-        
-        const regex = /(?:https|git)(?::\/\/|@)github\.com[\/:]([^\/:]+)\/(.+)/i;
-        const match = args[0].match(regex);
-        
-        if (!match) {
-            await sock.sendMessage(chatId, {
-                text: "⚠️ Invalid repository format."
-            });
-            return;
-        }
-        
-        const [, user, repo] = match;
-        const cleanRepo = repo.replace(/\.git$/, '');
-        const zipUrl = `https://api.github.com/repos/${user}/${cleanRepo}/zipball`;
-        
-        const headResponse = await axios.head(zipUrl, {
-            headers: { 'User-Agent': 'June-x' }
-        });
-        
-        if (headResponse.status !== 200) {
-            await sock.sendMessage(chatId, {
-                text: "❌ Repository not found or access denied."
-            });
-            return;
-        }
-        
-        const contentDisp = headResponse.headers['content-disposition'];
-        let filename = `${cleanRepo}.zip`;
-        
-        if (contentDisp) {
-            const filenameMatch = contentDisp.match(/attachment; filename="?(.+?)"?$/i);
-            if (filenameMatch && filenameMatch[1]) {
-                filename = filenameMatch[1];
-            }
-        }
-        
-        await sock.sendMessage(chatId, {
-            react: { text: '✅', key: message.key }
-        });
-        
-        await sock.sendMessage(
-            chatId,
-            {
-                document: { url: zipUrl },
-                fileName: filename,
-                mimetype: 'application/zip'
-            },
-            { quoted: message }
-        );
-        
-        await sock.sendMessage(chatId, {
-            text: `✅ Successfully fetched repository: *${user}/${cleanRepo}*\n📦 Filename: ${filename}`
-        }, { quoted: message });
-        
-    } catch (err) {
-        console.error(err);
-        
-        await sock.sendMessage(chatId, {
-            react: { text: '❌', key: message.key }
-        });
-        
-        let errorMessage = "❌ Failed to clone repository.\n";
-        
-        if (err.response) {
-            switch (err.response.status) {
-                case 404:
-                    errorMessage += "Repository not found.";
-                    break;
-                case 403:
-                    errorMessage += "Rate limited or access denied.";
-                    break;
-                default:
-                    errorMessage += `GitHub API Error: ${err.response.status}`;
-            }
-        } else if (err.code === 'ENOTFOUND') {
-            errorMessage += "Network error: Cannot connect to GitHub.";
-        } else {
-            errorMessage += `Error: ${err.message}`;
-        }
-        
-        await sock.sendMessage(chatId, {
-            text: errorMessage
-        }, { quoted: message });
+  
+  const text = message.message?.conversation || message.message?.extendedTextMessage?.text;
+  const parts = text.split(' ');
+  const command = parts[0].toLowerCase();
+  const query = parts.slice(1).join(' ').trim();
+
+  // Check if user provided a GitHub URL
+  if (!query) {
+    await sock.sendMessage(chatId, {
+      text: "*🔗 Please provide a GitHub repository link.*\n\n_Usage:_\n.gitclone https://github.com/username/repository"
+    }, { quoted: message });
+    return;
+  }
+
+  try {
+    // React loading
+    await sock.sendMessage(chatId, { react: { text: "⬇️", key: message.key } });
+
+    const axios = require('axios');
+
+    // Validate GitHub URL
+    if (!query.includes('github.com')) {
+      await sock.sendMessage(chatId, {
+        text: "❌ *Not a valid GitHub link!*"
+      }, { quoted: message });
+      return;
     }
+
+    // Extract GitHub username and repository name
+    const regex = /(?:https|git)(?::\/\/|@)github\.com[\/:]([^\/:]+)\/(.+)/i;
+    const match = query.match(regex);
+    
+    if (!match || !match[1] || !match[2]) {
+      await sock.sendMessage(chatId, {
+        text: "⚠️ *Invalid repository format.*"
+      }, { quoted: message });
+      return;
+    }
+
+    const user = match[1];
+    let repo = match[2].replace(/.git$/, '');
+    const zipUrl = `https://api.github.com/repos/${user}/${repo}/zipball`;
+
+    // Perform a HEAD request to get filename info
+    const head = await axios.head(zipUrl);
+    const contentDisp = head.headers['content-disposition'];
+    const filenameMatch = contentDisp?.match(/attachment; filename=(.*)/);
+    const filename = filenameMatch ? filenameMatch[1] : `${repo}.zip`;
+
+    // React upload
+    await sock.sendMessage(chatId, { react: { text: "⬆️", key: message.key } });
+
+    await sock.sendMessage(chatId, {
+      document: { url: zipUrl },
+      fileName: filename,
+      mimetype: 'application/zip',
+      caption: `📦 *Repository Cloned:* ${user}/${repo}`,
+      contextInfo: {
+        externalAdReply: {
+          title: `${user}/${repo}`,
+          body: "GitHub Repository Clone",
+          mediaType: 1,
+          sourceUrl: `https://github.com/${user}/${repo}`,
+          thumbnailUrl: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+          renderLargerThumbnail: true,
+          showAdAttribution: false
+        }
+      }
+    }, { quoted: message });
+
+    // Final reaction
+    await sock.sendMessage(chatId, { react: { text: "✅", key: message.key } });
+
+  } catch (error) {
+    console.error("gitclone error:", error);
+    
+    let errorMessage = "❌ *Failed to clone repository.*";
+    if (error.response) {
+      if (error.response.status === 404) {
+        errorMessage = "❌ *Repository not found.*";
+      } else if (error.response.status === 403) {
+        errorMessage = "❌ *Rate limited. Try again later.*";
+      }
+    }
+    
+    await sock.sendMessage(chatId, {
+      text: `${errorMessage}\n\n_Error:_ ${error.message}`
+    }, { quoted: message });
+  }
 }
 
 module.exports = gitcloneCommand;
