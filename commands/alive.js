@@ -44,7 +44,7 @@ async function aliveCommand(sock, chatId, message) {
     const formattedUptime = formatUptime(uptime);
     const hostName = detectPlatform();
 
-  const message1 = `⏰ June-X running for:\n *${formattedUptime}*`;
+  const message1 = `⏰ June-X running on ${hostName}for:\n *${formattedUptime}*`;
 
     // Fake contact for quoting
     const fake = {
