@@ -44,7 +44,7 @@ async function aliveCommand(sock, chatId, message) {
     const formattedUptime = formatUptime(uptime);
     const hostName = detectPlatform();
 
-  const message1 = `📑 *JUNE-X RUNNING FOR:\n ⚡ *${formattedUptime}*`;
+  const message1 = `⏰ JUNE-X RUNNING FOR:\n *${formattedUptime}*`;
 
     // Fake contact for quoting
     const fake = {
@@ -62,24 +62,8 @@ async function aliveCommand(sock, chatId, message) {
       participant: "0@s.whatsapp.net"
     };
 
-    // Local image
-    const imgPath = path.join(__dirname, '../assets/menu3.jpg');
-    const imgBuffer2 = fs.readFileSync(imgPath);
-
-    await sock.sendMessage(chatId, {
-      text: message1,
-      contextInfo: {
-        externalAdReply: {
-          showAdAttribution: false,
-          title: "JUNE-X BOT",
-          body: "© 2025",
-          thumbnail: imgBuffer2,
-          sourceUrl: "https://github.com/vinpink2",
-          mediaType: 1,
-          renderLargerThumbnail: true,
-        },
-      },
-    }, { quoted: fake });
+    // send uptime
+    await sock.sendMessage(chatId, { text: message1 }, { quoted: fake });
 
   } catch (error) {
     console.error('Error in alive command:', error);
