@@ -1,106 +1,145 @@
-
 const isAdmin = require('../lib/isAdmin');
 const store = require('../lib/lightweight_store');
 
 async function deleteCommand(sock, chatId, message, senderId) {
     try {
         const isGroup = chatId.endsWith('@g.us');
+
+        // --- Privilege checks ---
         let isSenderAdmin = true;
         let isBotAdmin = true;
 
-        // --- Admin checks ---
         if (isGroup) {
-            const adminStatus = await isAdmin(sock, chatId, senderId);
-            isSenderAdmin = adminStatus.isSenderAdmin;
-            isBotAdmin = adminStatus.isBotAdmin;
+            const { isSenderAdmin: senderAdmin, isBotAdmin: botAdmin } = await isAdmin(sock, chatId, senderId);
+            isSenderAdmin = senderAdmin;
+            isBotAdmin = botAdmin;
 
             if (!isBotAdmin) {
-                await sock.sendMessage(chatId, { text: '🚫 I need to be an admin to delete messages in groups.' }, { quoted: message });
-                await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
-                return;
+                return sendFeedback(sock, chatId, message, '🚫 I need to be an admin to delete messages in groups.');
             }
-
             if (!isSenderAdmin) {
-                await sock.sendMessage(chatId, { text: '🚫 Only group admins can use the .delete command.' }, { quoted: message });
-                await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
-                return;
+                return sendFeedback(sock, chatId, message, '🚫 Only group admins can use the .delete command.');
             }
         } else {
-            // Private chat: only allow if sender is the chat owner
             if (senderId !== chatId) {
-                await sock.sendMessage(chatId, { text: '🚫 Only the chat owner can use the .delete command in private chats.' }, { quoted: message });
-                await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
-                return;
+                return sendFeedback(sock, chatId, message, '🚫 Only the chat owner can use the .delete command in private chats.');
             }
         }
 
-        // --- Require reply context ---
+        // --- Parse arguments ---
+        const text = message.message?.conversation || message.message?.extendedTextMessage?.text || '';
+        const parts = text.trim().split(/\s+/);
+        let countArg = parseCount(parts);
+
+        // --- Context info ---
         const ctxInfo = message.message?.extendedTextMessage?.contextInfo || {};
+        const mentioned = Array.isArray(ctxInfo.mentionedJid) && ctxInfo.mentionedJid.length > 0 ? ctxInfo.mentionedJid[0] : null;
         const repliedParticipant = ctxInfo.participant || null;
-        const repliedMsgId = ctxInfo.stanzaId || null;
 
-        if (!repliedParticipant || !repliedMsgId) {
-            await sock.sendMessage(chatId, { text: '⚠️ Please reply to a message you want to delete.' }, { quoted: message });
-            await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
-            return;
-        }
+        let targetUser = null;
+        let repliedMsgId = null;
 
-        // --- Find replied message in store ---
-        const chatMessages = Array.isArray(store.messages[chatId]) ? store.messages[chatId] : [];
-        const repliedInStore = chatMessages.find(m => m.key.id === repliedMsgId);
-
-        const toDelete = [];
-        if (repliedInStore) {
-            toDelete.push(repliedInStore);
+        if (repliedParticipant && ctxInfo.stanzaId) {
+            targetUser = repliedParticipant;
+            repliedMsgId = ctxInfo.stanzaId;
+        } else if (mentioned) {
+            targetUser = mentioned;
         } else {
-            // fallback: try direct delete (works for bot’s own messages too)
-            toDelete.push({
-                key: {
-                    id: repliedMsgId,
-                    participant: repliedParticipant
-                }
-            });
+            targetUser = isGroup ? null : chatId;
         }
+
+        if (!targetUser) {
+            return sendFeedback(sock, chatId, message, '⚠️ Please reply to a user\'s message or mention a user to delete their recent messages.');
+        }
+
+        // --- Collect messages to delete ---
+        const chatMessages = Array.isArray(store.messages[chatId]) ? store.messages[chatId] : [];
+        const toDelete = collectMessages(message, chatMessages, targetUser, repliedMsgId, senderId, countArg);
 
         if (toDelete.length === 0) {
-            await sock.sendMessage(chatId, { text: '⚠️ No replied message found to delete.' }, { quoted: message });
-            await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
-            return;
+            return sendFeedback(sock, chatId, message, '⚠️ No recent messages found for the target user.');
         }
 
-        // --- Delete replied message(s) ---
+        // --- Perform deletion ---
         let deletedCount = 0;
         for (const m of toDelete) {
             try {
-                const msgParticipant = m.key.participant || repliedParticipant;
+                const msgParticipant = m.key.participant || targetUser;
                 await sock.sendMessage(chatId, {
                     delete: {
                         remoteJid: chatId,
-                        fromMe: true, // allow deleting bot’s own messages
+                        fromMe: false,
                         id: m.key.id,
                         participant: msgParticipant
                     }
                 });
                 deletedCount++;
-                await new Promise(r => setTimeout(r, 300));
+                await delay(300);
             } catch (e) {
-                // continue
+                // Defensive: continue without breaking flow
             }
         }
 
         if (deletedCount > 0) {
-            await sock.sendMessage(chatId, { text: `✅ Deleted ${deletedCount} replied message(s).` }, { quoted: message });
-            await sock.sendMessage(chatId, { react: { text: '✅', key: message.key } });
-        } else {
-            await sock.sendMessage(chatId, { text: '⚠️ Could not delete the replied message.' }, { quoted: message });
-            await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
+            await sendFeedback(sock, chatId, message, `✅ Deleted ${deletedCount} message(s).`);
         }
 
     } catch (err) {
-        console.error('❌ Error in deleteCommand:', err);
-        await sock.sendMessage(chatId, { text: '❌ Failed to delete messages.' }, { quoted: message });
-        await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
+        await sendFeedback(sock, chatId, message, '❌ Failed to delete messages.');
     }
+}
+
+// --- Helpers ---
+function sendFeedback(sock, chatId, quotedMsg, text) {
+    return sock.sendMessage(chatId, { text }, { quoted: quotedMsg });
+}
+
+function parseCount(parts) {
+    if (parts.length > 1) {
+        const maybeNum = parseInt(parts[1], 10);
+        if (!isNaN(maybeNum) && maybeNum > 0) {
+            return Math.min(maybeNum, 50);
+        }
+    }
+    return 1;
+}
+
+function collectMessages(message, chatMessages, targetUser, repliedMsgId, senderId, countArg) {
+    const toDelete = [];
+    const seenIds = new Set();
+
+    // Always include the command message itself
+    if (message.key?.id) {
+        toDelete.push({ key: { id: message.key.id, participant: senderId } });
+        seenIds.add(message.key.id);
+    }
+
+    // Handle replied message
+    if (repliedMsgId) {
+        const repliedInStore = chatMessages.find(m => m.key.id === repliedMsgId && (m.key.participant || m.key.remoteJid) === targetUser);
+        if (repliedInStore && !seenIds.has(repliedInStore.key.id)) {
+            toDelete.push(repliedInStore);
+            seenIds.add(repliedInStore.key.id);
+        }
+    }
+
+    // Collect recent messages from target user
+    for (let i = chatMessages.length - 1; i >= 0 && toDelete.length < countArg + 1; i--) {
+        const m = chatMessages[i];
+        const participant = m.key.participant || m.key.remoteJid;
+        if (participant === targetUser && !seenIds.has(m.key.id)) {
+            if (!m.message?.protocolMessage) {
+                toDelete.push(m);
+                seenIds.add(m.key.id);
+            }
+        }
+    }
+
+    return toDelete;
+}
+
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 module.exports = deleteCommand;
