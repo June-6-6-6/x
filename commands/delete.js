@@ -7,6 +7,7 @@ async function deleteCommand(sock, chatId, message, senderId) {
         let isSenderAdmin = true;
         let isBotAdmin = true;
 
+        // --- Admin checks ---
         if (isGroup) {
             const adminStatus = await isAdmin(sock, chatId, senderId);
             isSenderAdmin = adminStatus.isSenderAdmin;
@@ -14,107 +15,67 @@ async function deleteCommand(sock, chatId, message, senderId) {
 
             if (!isBotAdmin) {
                 await sock.sendMessage(chatId, { text: '🚫 I need to be an admin to delete messages in groups.' }, { quoted: message });
+                await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
                 return;
             }
 
             if (!isSenderAdmin) {
                 await sock.sendMessage(chatId, { text: '🚫 Only group admins can use the .delete command.' }, { quoted: message });
+                await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
                 return;
             }
         } else {
             // Private chat: only allow if sender is the chat owner
             if (senderId !== chatId) {
                 await sock.sendMessage(chatId, { text: '🚫 Only the chat owner can use the .delete command in private chats.' }, { quoted: message });
+                await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
                 return;
             }
         }
 
-        const text = message.message?.conversation || message.message?.extendedTextMessage?.text || '';
-        const parts = text.trim().split(/\s+/);
-        let countArg = 1;
-        if (parts.length > 1) {
-            const maybeNum = parseInt(parts[1], 10);
-            if (!isNaN(maybeNum) && maybeNum > 0) countArg = Math.min(maybeNum, 50);
-        }
-
+        // --- Require reply context ---
         const ctxInfo = message.message?.extendedTextMessage?.contextInfo || {};
-        const mentioned = Array.isArray(ctxInfo.mentionedJid) && ctxInfo.mentionedJid.length > 0 ? ctxInfo.mentionedJid[0] : null;
         const repliedParticipant = ctxInfo.participant || null;
+        const repliedMsgId = ctxInfo.stanzaId || null;
 
-        let targetUser = null;
-        let repliedMsgId = null;
-        if (repliedParticipant && ctxInfo.stanzaId) {
-            targetUser = repliedParticipant;
-            repliedMsgId = ctxInfo.stanzaId;
-        } else if (mentioned) {
-            targetUser = mentioned;
-        } else {
-            targetUser = isGroup ? null : chatId;
-        }
-
-        if (!targetUser) {
-            await sock.sendMessage(chatId, { text: '⚠️ Please reply to a user\'s message or mention a user to delete their recent messages.' }, { quoted: message });
+        if (!repliedParticipant || !repliedMsgId) {
+            await sock.sendMessage(chatId, { text: '⚠️ Please reply to a message you want to delete.' }, { quoted: message });
+            await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
             return;
         }
 
+        // --- Find replied message in store ---
         const chatMessages = Array.isArray(store.messages[chatId]) ? store.messages[chatId] : [];
-        const toDelete = [];
-        const seenIds = new Set();
+        const repliedInStore = chatMessages.find(m => m.key.id === repliedMsgId);
 
-        if (message.key?.id) {
+        const toDelete = [];
+        if (repliedInStore) {
+            toDelete.push(repliedInStore);
+        } else {
+            // fallback: try direct delete (works for bot’s own messages too)
             toDelete.push({
                 key: {
-                    id: message.key.id,
-                    participant: senderId
+                    id: repliedMsgId,
+                    participant: repliedParticipant
                 }
             });
-            seenIds.add(message.key.id);
-        }
-
-        if (repliedMsgId) {
-            const repliedInStore = chatMessages.find(m => m.key.id === repliedMsgId && (m.key.participant || m.key.remoteJid) === targetUser);
-            if (repliedInStore && !seenIds.has(repliedInStore.key.id)) {
-                toDelete.push(repliedInStore);
-                seenIds.add(repliedInStore.key.id);
-            } else {
-                try {
-                    await sock.sendMessage(chatId, {
-                        delete: {
-                            remoteJid: chatId,
-                            fromMe: false,
-                            id: repliedMsgId,
-                            participant: repliedParticipant
-                        }
-                    });
-                    countArg = Math.max(0, countArg - 1);
-                } catch {}
-            }
-        }
-
-        for (let i = chatMessages.length - 1; i >= 0 && toDelete.length < countArg + 1; i--) {
-            const m = chatMessages[i];
-            const participant = m.key.participant || m.key.remoteJid;
-            if (participant === targetUser && !seenIds.has(m.key.id)) {
-                if (!m.message?.protocolMessage) {
-                    toDelete.push(m);
-                    seenIds.add(m.key.id);
-                }
-            }
         }
 
         if (toDelete.length === 0) {
-            await sock.sendMessage(chatId, { text: '⚠️ No recent messages found for the target user.' }, { quoted: message });
+            await sock.sendMessage(chatId, { text: '⚠️ No replied message found to delete.' }, { quoted: message });
+            await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
             return;
         }
 
+        // --- Delete replied message(s) ---
         let deletedCount = 0;
         for (const m of toDelete) {
             try {
-                const msgParticipant = m.key.participant || targetUser;
+                const msgParticipant = m.key.participant || repliedParticipant;
                 await sock.sendMessage(chatId, {
                     delete: {
                         remoteJid: chatId,
-                        fromMe: false,
+                        fromMe: true, // allow deleting bot’s own messages
                         id: m.key.id,
                         participant: msgParticipant
                     }
@@ -126,9 +87,18 @@ async function deleteCommand(sock, chatId, message, senderId) {
             }
         }
 
+        if (deletedCount > 0) {
+            await sock.sendMessage(chatId, { text: `✅ Deleted ${deletedCount} replied message(s).` }, { quoted: message });
+            await sock.sendMessage(chatId, { react: { text: '✅', key: message.key } });
+        } else {
+            await sock.sendMessage(chatId, { text: '⚠️ Could not delete the replied message.' }, { quoted: message });
+            await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
+        }
 
     } catch (err) {
+        console.error('❌ Error in deleteCommand:', err);
         await sock.sendMessage(chatId, { text: '❌ Failed to delete messages.' }, { quoted: message });
+        await sock.sendMessage(chatId, { react: { text: '❌', key: message.key } });
     }
 }
 
