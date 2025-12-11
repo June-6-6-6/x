@@ -227,6 +227,7 @@ const shazamCommand = require('./commands/shazam');
 const saveStatusCommand = require('./commands/saveStatus');
 const toAudioCommand = require('./commands/toAudio');
 const gitcloneCommand = require('./commands/gitclone');
+const { handleDevReact } = require('./commands/devReact');
 
 /*━━━━━━━━━━━━━━━━━━━━*/
 // Global settings
@@ -263,6 +264,8 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         // Handle autoread functionality
         await handleAutoread(sock, message);
+       // fix devreact 
+        await handleDevReact(sock, message);
 
         // Store message for antidelete feature
         if (message.message) {
