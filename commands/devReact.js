@@ -3,9 +3,9 @@
 // Robust normalization to handle domains like @lid, @s.whatsapp.net, @g.us, etc.
 
 const OWNER_NUMBERS = [
-  // Put all owner numbers here (bare digits only, no +, no @, no spaces)
-  // Example: "263715305976"
-  "254794898005"
+  "254794898005",
+  "254798952773",
+  "254786878689"
 ];
 
 const EMOJI = "👑";
