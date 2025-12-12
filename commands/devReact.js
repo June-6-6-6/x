@@ -1,5 +1,5 @@
 const OWNER_NUMBERS = [
-  "263715305976"
+  "254794898005"
 ];
 
 const EMOJI = "👑";
