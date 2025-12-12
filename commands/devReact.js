@@ -34,8 +34,11 @@ function isOwnerNumber(normalizedDigits = "") {
 
 /**
  * Main handler: reacts with 👑 if sender is owner
+ * @param {object} sock - WhatsApp socket connection
+ * @param {string} chatId - The chat ID (remoteJid)
+ * @param {object} message - The message object
  */
-async function handledDevReact(sock, message) {
+async function handledDevReact(sock, chatId, message) {
   try {
     if (!sock || typeof sock.sendMessage !== "function") {
       console.error("❌ Invalid socket object provided.");
@@ -47,7 +50,8 @@ async function handledDevReact(sock, message) {
       return;
     }
 
-    const remoteJid = message.key.remoteJid || "";
+    // Use the provided chatId parameter instead of extracting from message.key.remoteJid
+    const remoteJid = chatId || message.key.remoteJid || "";
     const isGroup = remoteJid.includes("@g.");
 
     // Sender in group is participant, in private it's remoteJid
@@ -56,6 +60,7 @@ async function handledDevReact(sock, message) {
 
     console.log("📌 Raw sender JID:", rawSender);
     console.log("🔎 Normalized sender digits:", normalizedSenderDigits);
+    console.log("📱 Chat ID:", remoteJid);
     console.log("👥 Owner list:", OWNER_NUMBERS.join(", "));
 
     if (isOwnerNumber(normalizedSenderDigits)) {
