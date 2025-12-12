@@ -953,8 +953,8 @@ const fake = createFakeContact(message);
                 break;
                 
 
-            case userMessage === `${prefix}blocklist` |
-               | userMessage === `${prefix}listblock`:
+            case userMessage === `${prefix}blocklist` ||
+                 userMessage === `${prefix}listblock`:
                 await blocklistCommand(sock, chatId, message);
                 break;                
                 
