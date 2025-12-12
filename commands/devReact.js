@@ -71,4 +71,4 @@ async function handleDevReact(sock, msg) {
   }
 }
 
-module.exports = { handleDevReact, normalizeJidToDigits };
+module.exports = handleDevReact;
