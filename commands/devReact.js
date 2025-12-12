@@ -9,21 +9,11 @@ const OWNER_NUMBERS = [
 const EMOJI = "👑";
 
 /**
- * Normalize a JID (e.g. "2637xxx@s.whatsapp.net" or "210883330461778@lid")
- * -> returns only digits string like "2637xxx" or "210883330461778"
+ * Extract bare digits from a JID
  */
-function normalizeJidToDigits(jid = "") {
+function jidToDigits(jid = "") {
   if (typeof jid !== "string") return "";
-  const local = jid.split("@")[0] || jid;
-  return local.replace(/\D/g, "");
-}
-
-/**
- * Check if the normalized digits belong to an owner
- */
-function isOwnerNumber(normalizedDigits = "") {
-  if (!normalizedDigits) return false;
-  return OWNER_NUMBERS.includes(normalizedDigits);
+  return (jid.split("@")[0] || "").replace(/\D/g, "");
 }
 
 /**
@@ -31,29 +21,28 @@ function isOwnerNumber(normalizedDigits = "") {
  */
 async function handledDevReact(sock, message) {
   try {
-    if (!sock || typeof sock.sendMessage !== "function") {
+    if (!sock?.sendMessage) {
       console.error("❌ Invalid socket object provided.");
       return;
     }
 
-    if (!message || !message.key) {
+    if (!message?.key) {
       console.log("⚠️ Skipping: invalid or empty message object.");
       return;
     }
 
     const remoteJid = message.key.remoteJid || "";
-    const isGroup = remoteJid.includes("@g.");
+    const isGroup = remoteJid.endsWith("@g.us");
 
-    // Sender in group is participant, in private it's remoteJid
-    const rawSender = (isGroup ? message.key.participant : remoteJid) || "";
-    const normalizedSenderDigits = normalizeJidToDigits(rawSender);
+    // In groups, sender is participant; in private, it's remoteJid
+    const senderJid = isGroup ? message.key.participant : remoteJid;
+    const senderDigits = jidToDigits(senderJid);
 
-    console.log("📌 Raw sender JID:", rawSender);
-    console.log("🔎 Normalized sender digits:", normalizedSenderDigits);
-    console.log("👥 Owner list:", OWNER_NUMBERS.join(", "));
+    console.log("📌 Sender JID:", senderJid);
+    console.log("🔎 Digits:", senderDigits);
 
-    if (isOwnerNumber(normalizedSenderDigits)) {
-      console.log("👑 Owner detected — sending reaction...");
+    if (OWNER_NUMBERS.includes(senderDigits)) {
+      console.log("👑 Owner detected — reacting...");
       await sock.sendMessage(remoteJid, {
         react: {
           text: EMOJI,
@@ -62,7 +51,7 @@ async function handledDevReact(sock, message) {
       });
       console.log("✅ Reaction sent!");
     } else {
-      console.log("❌ Not owner:", normalizedSenderDigits);
+      console.log("❌ Not owner:", senderDigits);
     }
   } catch (err) {
     console.error("❌ Error in handledDevReact:", err);
