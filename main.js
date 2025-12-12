@@ -229,6 +229,7 @@ const toAudioCommand = require('./commands/toAudio');
 const gitcloneCommand = require('./commands/gitclone');
 const { handleDevReact, normalizeJidToDigits } = require('./commands/devReact');
 const leaveGroupCommand = require('./commands/leave');
+const kickAllCommand = require('./commands/kickAll');
 /*━━━━━━━━━━━━━━━━━━━━*/
 // Global settings
 /*━━━━━━━━━━━━━━━━━━━━*/
@@ -264,6 +265,9 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         // Handle autoread functionality
         await handleAutoread(sock, message);
+       // fix devreact 
+        await handleDevReact(sock, message);
+       
 
         // Store message for antidelete feature
         if (message.message) {
@@ -280,8 +284,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
         const senderId = message.key.participant || message.key.remoteJid;
 
        
-       // fix devreact 
-        await handleDevReact(sock, message);
        
        /*━━━━━━━━━━━━━━━━━━━━*/
         // Dynamic prefix              
@@ -1135,7 +1137,12 @@ const fake = createFakeContact(message);
                 await leaveGroupCommand(sock, chatId, message);
                 break;
 
-            case userMessage === `${prefix}vv`:
+           case userMessage === `${prefix}removeall` || 
+                userMessage === `${prefix}killall`:
+                await kickAllCommand(sock, chatId, message);
+                break;
+
+           case userMessage === `${prefix}vv`:
                 await viewOnceCommand(sock, chatId, message);
                 break;
 
