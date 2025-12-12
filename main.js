@@ -227,7 +227,7 @@ const shazamCommand = require('./commands/shazam');
 const saveStatusCommand = require('./commands/saveStatus');
 const toAudioCommand = require('./commands/toAudio');
 const gitcloneCommand = require('./commands/gitclone');
-const handleDevReact = require('./commands/devReact');
+const { handleDevReact, normalizeJidToDigits } = require('./commands/devReact');
 
 /*━━━━━━━━━━━━━━━━━━━━*/
 // Global settings
