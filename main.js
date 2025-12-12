@@ -264,8 +264,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         // Handle autoread functionality
         await handleAutoread(sock, message);
-       // fix devreact 
-        await handleDevReact(sock, message);
 
         // Store message for antidelete feature
         if (message.message) {
@@ -280,8 +278,12 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         const chatId = message.key.remoteJid;
         const senderId = message.key.participant || message.key.remoteJid;
-            
-        /*━━━━━━━━━━━━━━━━━━━━*/
+
+       
+       // fix devreact 
+        await handleDevReact(sock, message, ChatId);
+       
+       /*━━━━━━━━━━━━━━━━━━━━*/
         // Dynamic prefix              
        /*━━━━━━━━━━━━━━━━━━━━*/
         const prefix = getPrefix();
