@@ -1,3 +1,6 @@
+// Utility: delay helper
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 async function blockCommand(sock, chatId, message) {
     try {
         // Owner check
@@ -111,20 +114,38 @@ async function unblockallCommand(sock, chatId, message) {
         }
 
         await sock.sendMessage(chatId, { 
-            text: `🔄 Unblocking ${blockedContacts.length} contacts...`,
+            text: `🔄 Starting soft unblock of ${blockedContacts.length} contacts...`,
             quoted: message
         });
 
-        await Promise.all(
-            blockedContacts.map(jid => sock.updateBlockStatus(jid, 'unblock').catch(() => null))
-        );
+        let successCount = 0;
+        for (const jid of blockedContacts) {
+            try {
+                await sock.updateBlockStatus(jid, 'unblock');
+                successCount++;
+                console.log(`✅ Soft-unblocked: ${jid}`);
+
+                // Optional: send progress every 10 unblocks
+                if (successCount % 10 === 0) {
+                    await sock.sendMessage(chatId, { 
+                        text: `🔄 Progress: ${successCount}/${blockedContacts.length} contacts unblocked...`,
+                        quoted: message
+                    });
+                }
+
+                // Soft pacing: wait 500ms between requests
+                await delay(500);
+            } catch {
+                console.warn(`⚠️ Failed to unblock: ${jid}`);
+            }
+        }
 
         await sock.sendMessage(chatId, { 
-            text: `✅ Unblocked ${blockedContacts.length} contacts!`,
+            text: `✅ Finished soft unblock. Total unblocked: ${successCount}/${blockedContacts.length}`,
             quoted: message
         });
 
-        console.log(`✅ Unblocked ${blockedContacts.length} contacts`);
+        console.log(`✅ Soft unblock complete: ${successCount}/${blockedContacts.length}`);
     } catch (error) {
         console.error('Error in unblockallCommand:', error);
         await sock.sendMessage(chatId, { 
