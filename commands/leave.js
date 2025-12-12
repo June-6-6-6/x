@@ -19,33 +19,39 @@ async function leaveGroupCommand(sock, chatId, message) {
         }
 
         const groupName = chat.subject || 'the group';
-        const participantsCount = chat.participants?.length || 0;
         
-        await sock.sendMessage(chatId, { 
-            text: `👋 Goodbye everyone!\n\nThe bot is leaving ${groupName}.\n\nThank you for having me here!`,
-            quoted: message
-        });
+        // Send goodbye message and leave simultaneously
+        await Promise.all([
+            sock.sendMessage(chatId, { 
+                text: `👋 Goodbye! Bot is leaving ${groupName}.`,
+                quoted: message
+            }),
+            sock.groupLeave(chatId).catch(err => {
+                // Continue execution even if leave fails initially
+                console.log('Initial leave attempt:', err.message);
+            })
+        ]);
+
+        // Try leaving again if first attempt failed
+        try {
+            await sock.groupLeave(chatId);
+        } catch (leaveError) {
+            console.log('Second leave attempt:', leaveError.message);
+        }
         
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        await sock.groupLeave(chatId);
-        
-        console.log(`✅ Bot left group: ${groupName} (Participants: ${participantsCount})`);
+        console.log(`✅ Bot left group: ${groupName}`);
 
     } catch (error) {
         console.error('Error in leaveGroupCommand:', error);
         
-        let errorMessage = '❌ Failed to leave group!';
-        if (error.message.includes('not in group')) {
-            errorMessage = '❌ Bot is not a participant in this group!';
-        } else if (error.message.includes('not authorized')) {
-            errorMessage = '❌ Bot does not have permission to leave this group!';
+        // Don't send error message if we're already leaving or left
+        if (!error.message.includes('not in group') && 
+            !error.message.includes('Not authorized')) {
+            await sock.sendMessage(chatId, { 
+                text: '❌ Failed to leave group!',
+                quoted: message
+            }).catch(() => {});
         }
-        
-        await sock.sendMessage(chatId, { 
-            text: errorMessage,
-            quoted: message
-        }).catch(() => {});
     }
 }
 
