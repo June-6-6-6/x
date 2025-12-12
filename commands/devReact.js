@@ -1,3 +1,4 @@
+const { jidDecode }= require('@whiskeysockets/baileys');
 const OWNER_NUMBERS = [
   "254794898005"
 ];
