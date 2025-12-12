@@ -281,7 +281,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
        
        // fix devreact 
-        await handleDevReact(sock, message, ChatId);
+        await handleDevReact(sock, message);
        
        /*━━━━━━━━━━━━━━━━━━━━*/
         // Dynamic prefix              
