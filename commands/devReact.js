@@ -2,7 +2,7 @@
 // Reacts with 👑 even if someone already reacted with the same emoji.
 
 const OWNER_NUMBERS = [
-  "+263715305976",
+  "+254794898005",
   "65765025779814"
 ];
 
@@ -47,4 +47,4 @@ async function handleDevReact(sock, message) {
   } catch {}
 }
 
-module.exports = { handleDevReact };
+module.exports = handleDevReact;
