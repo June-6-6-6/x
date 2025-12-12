@@ -1,59 +1,45 @@
-const { jidDecode }= require('@whiskeysockets/baileys');
 const OWNER_NUMBERS = [
-  "254794898005"
+  "+254794895005",
+  "65765025779814"
 ];
 
 const EMOJI = "👑";
 
 function normalizeJidToDigits(jid) {
-  if (!jid || typeof jid !== "string") return "";
-  const local = jid.split("@")[0] || jid;
+  if (!jid) return "";
+  const local = jid.split("@")[0];
   return local.replace(/\D/g, "");
 }
 
-function isOwnerNumber(normalizedDigits) {
-  if (!normalizedDigits) return false;
-  for (const owner of OWNER_NUMBERS) {
-    if (normalizedDigits === owner) return true;
-    if (normalizedDigits.endsWith(owner)) return true;
-    if (normalizedDigits.includes(owner)) return true;
-  }
-  return false;
+function isOwnerNumber(num) {
+  return OWNER_NUMBERS.some(owner =>
+    num === owner ||
+    num.endsWith(owner) ||
+    num.includes(owner)
+  );
 }
 
-async function handleDevReact(sock, message) {
+async function handleDevReact(sock, msg) {
   try {
-    if (!message || !message.key) return;
-    if (!message.message) return;
+    if (!msg?.key || !msg.message) return;
 
-    const remoteJid = message.key.remoteJid || "";
-    const isGroup = typeof remoteJid === "string" && remoteJid.includes("@g.");
+    const remoteJid = msg.key.remoteJid || "";
+    const isGroup = remoteJid.endsWith("@g.us");
 
-    const rawSender = (isGroup ? message.key.participant : message.key.remoteJid) || "";
-    const normalizedSenderDigits = normalizeJidToDigits(rawSender);
+    const rawSender = isGroup ? msg.key.participant : msg.key.remoteJid;
+    const digits = normalizeJidToDigits(rawSender);
 
-    console.log("📌 Raw sender JID:", rawSender);
-    console.log("🔎 Normalized sender digits:", normalizedSenderDigits);
-    console.log("👥 Owner list:", OWNER_NUMBERS.join(", "));
+    if (!isOwnerNumber(digits)) return;
 
-    if (isOwnerNumber(normalizedSenderDigits)) {
-      console.log("👑 Owner detected — sending reaction...");
+    await sock.sendMessage(remoteJid, {
+      react: { text: "", key: msg.key }
+    });
 
-      await sock.sendMessage(remoteJid, {
-        react: {
-          text: EMOJI,
-          key: message.key
-        }
-      });
+    await sock.sendMessage(remoteJid, {
+      react: { text: EMOJI, key: msg.key }
+    });
 
-      console.log("✅ Reaction sent!");
-      return;
-    }
-
-    console.log("❌ Not owner:", normalizedSenderDigits);
-  } catch (err) {
-    console.error("❌ Error in devReact:", err);
-  }
+  } catch {}
 }
 
 module.exports = handleDevReact;
