@@ -3,8 +3,7 @@
 // Robust normalization to handle domains like @lid, @s.whatsapp.net, @g.us, etc.
 
 const OWNER_NUMBERS = [
-  "254794898005",
-  "254798952773"
+  "254794898005"
 ];
 
 const EMOJI = "👑";
