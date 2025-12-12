@@ -1,6 +1,6 @@
 const fetch = require('node-fetch');
 
-async function handleSswebCommand(sock, chatId, message, match) {
+async function handleSsCommand(sock, chatId, message, match) {
     if (!match) {
         await sock.sendMessage(chatId, {
             text: `🌐 *SCREENSHOT WEB TOOL*\n\n*.ssweb <url>*\n\nCapture a screenshot of any website\n\nExample:\n.ssweb https://example.com`,
@@ -60,5 +60,5 @@ async function handleSswebCommand(sock, chatId, message, match) {
 }
 
 module.exports = {
-    handleSswebCommand
+    handleSsCommand
 };
