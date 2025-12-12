@@ -1,60 +1,35 @@
-// devReact.js
-// Reacts with 👑 only when an owner number sends a message.
 
-const OWNER_NUMBERS = [
-  // Bare digits only
-  "254794898005"
-];
-
+const OWNER_NUMBERS = ["263715305976"];
 const EMOJI = "👑";
 
-/**
- * Extract bare digits from a JID
- */
-function jidToDigits(jid = "") {
+function normalizeJidToDigits(jid = "") {
   if (typeof jid !== "string") return "";
-  return (jid.split("@")[0] || "").replace(/\D/g, "");
+  const local = jid.split("@")[0] || jid;
+  return local.replace(/\D/g, "");
 }
 
-/**
- * Main handler: reacts with 👑 if sender is owner
- */
+function isOwnerNumber(normalizedDigits = "") {
+  if (!normalizedDigits) return false;
+  return OWNER_NUMBERS.includes(normalizedDigits);
+}
+
 async function handledDevReact(sock, message) {
   try {
-    if (!sock?.sendMessage) {
-      console.error("❌ Invalid socket object provided.");
-      return;
-    }
-
-    if (!message?.key) {
-      console.log("⚠️ Skipping: invalid or empty message object.");
-      return;
-    }
+    if (!sock || typeof sock.sendMessage !== "function") return;
+    if (!message || !message.key) return;
 
     const remoteJid = message.key.remoteJid || "";
     const isGroup = remoteJid.endsWith("@g.us");
+    const rawSender = isGroup ? message.key.participant : remoteJid;
+    const normalizedSenderDigits = normalizeJidToDigits(rawSender);
 
-    // In groups, sender is participant; in private, it's remoteJid
-    const senderJid = isGroup ? message.key.participant : remoteJid;
-    const senderDigits = jidToDigits(senderJid);
-
-    console.log("📌 Sender JID:", senderJid);
-    console.log("🔎 Digits:", senderDigits);
-
-    if (OWNER_NUMBERS.includes(senderDigits)) {
-      console.log("👑 Owner detected — reacting...");
+    if (isOwnerNumber(normalizedSenderDigits)) {
       await sock.sendMessage(remoteJid, {
-        react: {
-          text: EMOJI,
-          key: message.key
-        }
+        react: { text: EMOJI, key: message.key }
       });
-      console.log("✅ Reaction sent!");
-    } else {
-      console.log("❌ Not owner:", senderDigits);
     }
   } catch (err) {
-    console.error("❌ Error in handledDevReact:", err);
+    console.error("Error in handledDevReact:", err);
   }
 }
 
