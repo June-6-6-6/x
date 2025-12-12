@@ -228,7 +228,7 @@ const saveStatusCommand = require('./commands/saveStatus');
 const toAudioCommand = require('./commands/toAudio');
 const gitcloneCommand = require('./commands/gitclone');
 const { handleDevReact, normalizeJidToDigits } = require('./commands/devReact');
-
+const leaveGroupCommand = require('./commands/leave');
 /*━━━━━━━━━━━━━━━━━━━━*/
 // Global settings
 /*━━━━━━━━━━━━━━━━━━━━*/
@@ -1124,12 +1124,17 @@ const fake = createFakeContact(message);
 
             case userMessage.startsWith(`${prefix}tg`) ||
                  userMessage.startsWith(`${prefix}tgsticker`):
-                await stickerTelegramCommand(sock, chatId, message);
-                break;
+                await stickerTelegramCommand(sock, chatId, message);            
+              break;
                 
             /*━━━━━━━━━━━━━━━━━━━━*/
-            // Other Commands
+            // Other Commands And Additionals
             /*━━━━━━━━━━━━━━━━━━━━*/
+            case userMessage === `${prefix}left` ||
+                 userMessage === `${prefix}leave`:
+                await leaveGroupCommand(sock, chatId, message);
+                break;
+
             case userMessage === `${prefix}vv`:
                 await viewOnceCommand(sock, chatId, message);
                 break;
