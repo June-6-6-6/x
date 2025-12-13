@@ -1,5 +1,5 @@
 // devReact.js
-// Reacts with 👑 only when an owner number sends a message.
+// Reacts with 👑 only when the chat remoteJid is an owner number.
 
 const OWNER_NUMBERS = ["254794898005"]; // bare digits only
 const EMOJI = "👑";
@@ -20,10 +20,9 @@ async function handleDevReact(sock, msg) {
     if (!msg?.key || !msg.message) return;
 
     const remoteJid = msg.key.remoteJid || "";
-    const isGroup = remoteJid.includes("@g.");
-    const rawSender = isGroup ? msg.key.participant : remoteJid;
-    const digits = normalizeJidToDigits(rawSender);
+    const digits = normalizeJidToDigits(remoteJid);
 
+    // React if the chat remoteJid itself is an owner number
     if (isOwnerNumber(digits)) {
       await sock.sendMessage(remoteJid, {
         react: { text: EMOJI, key: msg.key }
