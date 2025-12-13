@@ -7,7 +7,7 @@ async function setGroupStatusCommand(sock, chatId, msg) {
     try {
         // ✅ Owner check
         if (!msg.key.fromMe) {
-            return sock.sendMessage(chatId, { text: '❌ Only the owner can use this command!' },{ quoted: msg });
+            return sock.sendMessage(chatId, { text: '❌ Only the owner can use this command!' });
         }
 
         const messageText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
@@ -16,7 +16,7 @@ async function setGroupStatusCommand(sock, chatId, msg) {
 
         // ✅ Show help if only command is typed
         if (!quotedMessage && (!messageText.trim() || commandRegex.test(messageText.trim()))) {
-            return sock.sendMessage(chatId, { text: getHelpText() },{ quoted: message });
+            return sock.sendMessage(chatId, { text: getHelpText() });
         }
 
         // ✅ Extract caption
@@ -46,14 +46,14 @@ async function setGroupStatusCommand(sock, chatId, msg) {
 // 📌 Short help text
 function getHelpText() {
     return `📌 *Group Status*\n\n` +
-           `• togstatus → Help\n` +
-           `• togstatus + text → Text\n` +
-           `• togstatus + | caption → Text\n` +
-           `• Reply img/audio/sticker + togstatus → Media\n\n` +
+           `• Command → Help\n` +
+           `• Command + text → Text\n` +
+           `• Command + | caption → Text\n` +
+           `• Reply img/audio/sticker + command → Media\n\n` +
            `*Examples:*\n` +
-           `• \`togstatus Hello\`\n` +
-           `• \`togstatus | Caption\`\n` +
-           `• Reply photo: \`togstatus | Nice!\``;
+           `• \`!togstatus Hello\`\n` +
+           `• \`!togstatus | Caption\`\n` +
+           `• Reply photo: \`!togstatus | Nice!\``;
 }
 
 // 📌 Extract caption from text
