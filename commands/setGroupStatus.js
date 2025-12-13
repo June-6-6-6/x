@@ -6,135 +6,99 @@ const { PassThrough } = require('stream');
 async function setGroupStatusCommand(sock, chatId, msg) {
     try {
         // ✅ Owner check
-        if (!msg.key.fromMe) {
-            return sock.sendMessage(chatId, { text: '❌ Only the owner can use this command!' });
-        }
+        if (!msg.key.fromMe) return sock.sendMessage(chatId, { text: '❌ Only the owner can use this command!' });
 
-        const messageText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
-        const quotedMessage = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-        const commandRegex = /^[.!#/]?(togstatus|swgc|groupstatus)\s*/i;
+        // ✅ Group check
+        const chat = await sock.groupMetadata(chatId).catch(() => null);
+        if (!chat) return sock.sendMessage(chatId, { text: '❌ This command can only be used in groups!' });
+
+        const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
+        const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+        const cmdRegex = /^[.!#/]?(togstatus|swgc|groupstatus)\s*/i;
 
         // ✅ Show help if only command is typed
-        if (!quotedMessage && (!messageText.trim() || commandRegex.test(messageText.trim()))) {
-            return sock.sendMessage(chatId, { text: getHelpText() });
+        if (!quoted && (!text.trim() || cmdRegex.test(text.trim()))) {
+            return sock.sendMessage(chatId, { text: helpMessage() });
         }
 
         // ✅ Extract caption
-        let caption = extractCaption(messageText, commandRegex);
+        let caption = text.replace(cmdRegex, '').trim();
+        if (caption.includes('|')) caption = caption.split('|').slice(1).join('|').trim();
 
-        // ✅ Build payload
-        const payload = quotedMessage ? await buildPayloadFromQuoted(quotedMessage, caption) : { text: caption };
-
-        if (!caption && !quotedMessage) {
-            return sock.sendMessage(chatId, { text: getHelpText() });
+        let payload = { text: caption };
+        if (quoted) {
+            if (quoted.imageMessage) payload = await buildPayload(quoted.imageMessage, 'image', caption);
+            else if (quoted.audioMessage) payload = await buildAudioPayload(quoted.audioMessage, caption);
+            else if (quoted.stickerMessage) payload = await buildPayload(quoted.stickerMessage, 'sticker');
         }
 
         // ✅ Send group status
         await sendGroupStatus(sock, chatId, payload);
 
-        const mediaType = detectMediaType(quotedMessage);
-        await sock.sendMessage(chatId, { text: `✅ ${mediaType} status sent!${caption ? `\nCaption: "${caption}"` : ''}` });
+        const type = quoted ? (quoted.imageMessage ? 'Image' : quoted.audioMessage ? 'Audio' : quoted.stickerMessage ? 'Sticker' : 'Text') : 'Text';
+        await sock.sendMessage(chatId, { text: `✅ ${type} status sent to group!${caption ? `\nCaption: "${caption}"` : ''}` });
 
-    } catch (error) {
-        console.error('Error in togstatus command:', error);
-        await sock.sendMessage(chatId, { text: `❌ Failed: ${error.message}` });
+    } catch (err) {
+        console.error('Error in togstatus command:', err);
+        await sock.sendMessage(chatId, { text: `❌ Failed: ${err.message}` });
     }
 }
 
-/* ------------------ Helpers ------------------ */
+// ✅ Helpers
+function helpMessage() {
+    return `📌 *Group Status Command Usage*\n
+*Note:* Works only in groups
 
-// 📌 Short help text
-function getHelpText() {
-    return `📌 *Group Status*\n\n` +
-           `• Command → Help\n` +
-           `• Command + text → Text\n` +
-           `• Command + | caption → Text\n` +
-           `• Reply img/audio/sticker + command → Media\n\n` +
-           `*Examples:*\n` +
-           `• \`!togstatus Hello\`\n` +
-           `• \`!togstatus | Caption\`\n` +
-           `• Reply photo: \`!togstatus | Nice!\``;
+*Usage:*
+• Just command → Show this help
+• Command + text → Send text status
+• Command + | + text → Send text status
+• Reply to image + command → Send image status
+• Reply to audio + command → Send audio status
+• Reply to sticker + command → Send sticker status
+
+*Examples:*
+• \`!togstatus Hello World\` → Text status
+• \`!togstatus | Check this out!\` → Text status
+• Reply to photo with \`!togstatus | Beautiful sunset\` → Image status with caption
+• Reply to audio with \`!togstatus | My voice note\` → Audio status with caption`;
 }
 
-// 📌 Extract caption from text
-function extractCaption(messageText, commandRegex) {
-    const fullText = messageText.replace(commandRegex, '').trim();
-    if (!fullText) return '';
-
-    if (fullText.includes('|')) {
-        return fullText.split('|').slice(1).join('|').trim();
-    }
-    return fullText.replace(commandRegex, '').trim();
-}
-
-// 📌 Build payload from quoted message
-async function buildPayloadFromQuoted(quotedMessage, caption) {
-    if (quotedMessage.imageMessage) {
-        const buffer = await downloadToBuffer(quotedMessage.imageMessage, 'image');
-        return { image: buffer, caption };
-    }
-    if (quotedMessage.audioMessage) {
-        const buffer = await downloadToBuffer(quotedMessage.audioMessage, 'audio');
-        const audioVn = await toVN(buffer);
-        return { audio: audioVn, mimetype: "audio/ogg; codecs=opus", ptt: true, caption };
-    }
-    if (quotedMessage.stickerMessage) {
-        const buffer = await downloadToBuffer(quotedMessage.stickerMessage, 'sticker');
-        return { sticker: buffer };
-    }
-    return { text: caption };
-}
-
-// 📌 Detect media type
-function detectMediaType(quotedMessage) {
-    if (!quotedMessage) return 'Text';
-    if (quotedMessage.imageMessage) return 'Image';
-    if (quotedMessage.audioMessage) return 'Audio';
-    if (quotedMessage.stickerMessage) return 'Sticker';
-    return 'Text';
-}
-
-// 📌 Download message content to buffer
-async function downloadToBuffer(message, type) {
-    const stream = await downloadContentFromMessage(message, type);
+async function buildPayload(msg, type, caption = '') {
+    const stream = await downloadContentFromMessage(msg, type);
     let buffer = Buffer.from([]);
     for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
-    return buffer;
+    return type === 'image' ? { image: buffer, caption } : { sticker: buffer };
 }
 
-// 📌 Send group status
+async function buildAudioPayload(msg, caption = '') {
+    const stream = await downloadContentFromMessage(msg, 'audio');
+    let buffer = Buffer.from([]);
+    for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
+    const audioVn = await toVN(buffer);
+    return { audio: audioVn, mimetype: "audio/ogg; codecs=opus", ptt: true, caption };
+}
+
 async function sendGroupStatus(conn, jid, content) {
     const inside = await generateWAMessageContent(content, { upload: conn.waUploadToServer });
-    const messageSecret = crypto.randomBytes(32);
-
+    const secret = crypto.randomBytes(32);
     const m = generateWAMessageFromContent(jid, {
-        messageContextInfo: { messageSecret },
-        groupStatusMessageV2: { message: { ...inside, messageContextInfo: { messageSecret } } }
+        messageContextInfo: { messageSecret: secret },
+        groupStatusMessageV2: { message: { ...inside, messageContextInfo: { messageSecret: secret } } }
     }, {});
-
     await conn.relayMessage(jid, m.message, { messageId: m.key.id });
     return m;
 }
 
-// 📌 Convert audio to voice note
 async function toVN(inputBuffer) {
     return new Promise((resolve, reject) => {
-        const inStream = new PassThrough();
-        inStream.end(inputBuffer);
-        const outStream = new PassThrough();
-        const chunks = [];
-
+        const inStream = new PassThrough(); inStream.end(inputBuffer);
+        const outStream = new PassThrough(); const chunks = [];
         ffmpeg(inStream)
-            .noVideo()
-            .audioCodec("libopus")
-            .format("ogg")
-            .audioBitrate("48k")
-            .audioChannels(1)
-            .audioFrequency(48000)
-            .on("error", reject)
-            .on("end", () => resolve(Buffer.concat(chunks)))
+            .noVideo().audioCodec("libopus").format("ogg")
+            .audioBitrate("48k").audioChannels(1).audioFrequency(48000)
+            .on("error", reject).on("end", () => resolve(Buffer.concat(chunks)))
             .pipe(outStream, { end: true });
-
         outStream.on("data", chunk => chunks.push(chunk));
     });
 }
