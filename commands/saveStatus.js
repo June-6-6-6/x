@@ -47,7 +47,7 @@ async function saveStatusCommand(sock, chatId, message) {
 
         // ⏳ Reaction: downloading
         await sock.sendMessage(chatId, { react: { text: '⏳', key: message.key } });
-        await sock.sendMessage(chatId, { text: '📥 Downloading status Update...' }, { quoted: message });
+        await sock.sendMessage(chatId, { text: '📥 _Downloading update ..._' }, { quoted: message });
 
         // 📥 Download media
         const buffer = await downloadMediaMessage(
