@@ -13,7 +13,7 @@ async function setGroupStatusCommand(sock, chatId, msg) {
         if (!chat) return sock.sendMessage(chatId, { text: '❌ This command can only be used in groups!' });
 
         const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
-        const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+        const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage || null;
         const cmdRegex = /^[.!#/]?(togstatus|swgc|groupstatus)\s*/i;
 
         // ✅ Show help if only command is typed
@@ -29,9 +29,13 @@ async function setGroupStatusCommand(sock, chatId, msg) {
 
         let payload;
         if (quoted) {
-            if (quoted.imageMessage) payload = await buildPayload(quoted.imageMessage, 'image', caption);
-            else if (quoted.audioMessage) payload = await buildAudioPayload(quoted.audioMessage, caption);
-            else if (quoted.stickerMessage) payload = await buildPayload(quoted.stickerMessage, 'sticker');
+            if ('imageMessage' in quoted) {
+                payload = await buildPayload(quoted.imageMessage, 'image', caption);
+            } else if ('audioMessage' in quoted) {
+                payload = await buildAudioPayload(quoted.audioMessage, caption);
+            } else if ('stickerMessage' in quoted) {
+                payload = await buildPayload(quoted.stickerMessage, 'sticker');
+            }
         } else {
             // If no quoted media, treat as text status
             payload = { text: caption || text.replace(cmdRegex, '').trim() };
@@ -40,7 +44,13 @@ async function setGroupStatusCommand(sock, chatId, msg) {
         // ✅ Send group status
         await sendGroupStatus(sock, chatId, payload);
 
-        const type = quoted ? (quoted.imageMessage ? 'Image' : quoted.audioMessage ? 'Audio' : quoted.stickerMessage ? 'Sticker' : 'Text') : 'Text';
+        const type = quoted
+            ? ('imageMessage' in quoted ? 'Image'
+                : 'audioMessage' in quoted ? 'Audio'
+                : 'stickerMessage' in quoted ? 'Sticker'
+                : 'Text')
+            : 'Text';
+
         await sock.sendMessage(chatId, { text: `✅ ${type} status sent to group!${caption ? `\nCaption: "${caption}"` : ''}` });
 
     } catch (err) {
@@ -73,7 +83,9 @@ async function buildPayload(msg, type, caption = '') {
     const stream = await downloadContentFromMessage(msg, type);
     let buffer = Buffer.from([]);
     for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
-    return type === 'image' ? { image: buffer, ...(caption ? { caption } : {}) } : { sticker: buffer };
+    return type === 'image'
+        ? { image: buffer, ...(caption ? { caption } : {}) }
+        : { sticker: buffer };
 }
 
 async function buildAudioPayload(msg, caption = '') {
@@ -81,7 +93,12 @@ async function buildAudioPayload(msg, caption = '') {
     let buffer = Buffer.from([]);
     for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
     const audioVn = await toVN(buffer);
-    return { audio: audioVn, mimetype: "audio/ogg; codecs=opus", ptt: true, ...(caption ? { caption } : {}) };
+    return {
+        audio: audioVn,
+        mimetype: "audio/ogg; codecs=opus",
+        ptt: true,
+        ...(caption ? { caption } : {})
+    };
 }
 
 async function sendGroupStatus(conn, jid, content) {
