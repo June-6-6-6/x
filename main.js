@@ -803,7 +803,8 @@ const fake = createFakeContact(message);
 
               
             case userMessage === `${prefix}setgstatus` || 
-              userMessage === `${prefix}togroupstatus`:
+              userMessage === `${prefix}togroupstatus` || 
+              userMessage === `${prefix}tosgroup:
                 await setGroupStatusCommand(sock, chatId, message);
                 break;
 
