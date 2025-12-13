@@ -21,15 +21,20 @@ async function setGroupStatusCommand(sock, chatId, msg) {
             return sock.sendMessage(chatId, { text: helpMessage() });
         }
 
-        // ✅ Extract caption
-        let caption = text.replace(cmdRegex, '').trim();
-        if (caption.includes('|')) caption = caption.split('|').slice(1).join('|').trim();
+        // ✅ Extract caption only if `|` is used
+        let caption = '';
+        if (text.includes('|')) {
+            caption = text.split('|').slice(1).join('|').trim();
+        }
 
-        let payload = { text: caption };
+        let payload;
         if (quoted) {
             if (quoted.imageMessage) payload = await buildPayload(quoted.imageMessage, 'image', caption);
             else if (quoted.audioMessage) payload = await buildAudioPayload(quoted.audioMessage, caption);
             else if (quoted.stickerMessage) payload = await buildPayload(quoted.stickerMessage, 'sticker');
+        } else {
+            // If no quoted media, treat as text status
+            payload = { text: caption || text.replace(cmdRegex, '').trim() };
         }
 
         // ✅ Send group status
@@ -68,7 +73,7 @@ async function buildPayload(msg, type, caption = '') {
     const stream = await downloadContentFromMessage(msg, type);
     let buffer = Buffer.from([]);
     for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
-    return type === 'image' ? { image: buffer, caption } : { sticker: buffer };
+    return type === 'image' ? { image: buffer, ...(caption ? { caption } : {}) } : { sticker: buffer };
 }
 
 async function buildAudioPayload(msg, caption = '') {
@@ -76,7 +81,7 @@ async function buildAudioPayload(msg, caption = '') {
     let buffer = Buffer.from([]);
     for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
     const audioVn = await toVN(buffer);
-    return { audio: audioVn, mimetype: "audio/ogg; codecs=opus", ptt: true, caption };
+    return { audio: audioVn, mimetype: "audio/ogg; codecs=opus", ptt: true, ...(caption ? { caption } : {}) };
 }
 
 async function sendGroupStatus(conn, jid, content) {
