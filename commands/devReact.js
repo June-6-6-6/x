@@ -1,62 +1,36 @@
 // devReact.js
+// Reacts with 👑 only when an owner number sends a message.
 
-const OWNER_NUMBERS = [
-  "254794898005"
-];
-
+const OWNER_NUMBERS = ["254794898005"]; // bare digits only
 const EMOJI = "👑";
 
 function normalizeJidToDigits(jid) {
-  if (!jid || typeof jid !== "string") {
-    return "";
-  }
-  const local = jid.split("@")[0] || jid;
-  const digits = local.replace(/\D/g, "");
-  return digits;
+  if (!jid) return "";
+  return (jid.split("@")[0] || "").replace(/\D/g, "");
 }
 
-function isOwnerNumber(normalizedDigits) {
-  if (!normalizedDigits) {
-    return false;
-  }
-  for (const owner of OWNER_NUMBERS) {
-    if (normalizedDigits === owner) {
-      return true;
-    }
-    if (normalizedDigits.endsWith(owner)) {
-      return true;
-    }
-    if (normalizedDigits.includes(owner)) {
-      return true;
-    }
-  }
-  return false;
+function isOwnerNumber(digits) {
+  return digits && OWNER_NUMBERS.some(owner =>
+    digits === owner || digits.endsWith(owner) || digits.includes(owner)
+  );
 }
 
-async function handleDevReact(sock, message) {
+async function handleDevReact(sock, msg) {
   try {
-    if (!message || !message.key) {
-      return;
-    }
-    if (!message.message) {
-      return;
-    }
+    if (!msg?.key || !msg.message) return;
 
-    const remoteJid = message.key.remoteJid || "";
-    const isGroup = typeof remoteJid === "string" && remoteJid.includes("@g.");
-    const rawSender = (isGroup ? message.key.participant : message.key.remoteJid) || "";
-    const normalizedSenderDigits = normalizeJidToDigits(rawSender);
+    const remoteJid = msg.key.remoteJid || "";
+    const isGroup = remoteJid.includes("@g.");
+    const rawSender = isGroup ? msg.key.participant : remoteJid;
+    const digits = normalizeJidToDigits(rawSender);
 
-    if (isOwnerNumber(normalizedSenderDigits)) {
+    if (isOwnerNumber(digits)) {
       await sock.sendMessage(remoteJid, {
-        react: {
-          text: EMOJI,
-          key: message.key
-        }
+        react: { text: EMOJI, key: msg.key }
       });
     }
   } catch (err) {
-    console.error("Error in handleDevReact:", err);
+    console.error("Error in devReact:", err);
   }
 }
 
