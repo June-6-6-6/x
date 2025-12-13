@@ -232,7 +232,7 @@ const leaveGroupCommand = require('./commands/leave');
 const kickAllCommand = require('./commands/kickAll');
 const { blockCommand, unblockCommand, blocklistCommand } = require('./commands/blockUnblock');
 const ytsCommand = require('./commands/yts');
-const setGroupStatusCommand = require('./commands/setGroupSt atus');
+const setGroupStatusCommand = require('./commands/setGroupStatus');
 /*━━━━━━━━━━━━━━━━━━━━*/
 // Global settings
 /*━━━━━━━━━━━━━━━━━━━━*/
