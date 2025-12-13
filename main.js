@@ -232,6 +232,7 @@ const leaveGroupCommand = require('./commands/leave');
 const kickAllCommand = require('./commands/kickAll');
 const { blockCommand, unblockCommand, blocklistCommand } = require('./commands/blockUnblock');
 const ytsCommand = require('./commands/yts');
+const setGroupStatusCommand = require('./commands/setGroupSt atus');
 /*━━━━━━━━━━━━━━━━━━━━*/
 // Global settings
 /*━━━━━━━━━━━━━━━━━━━━*/
@@ -799,6 +800,14 @@ const fake = createFakeContact(message);
                 await saveStatusCommand(sock, chatId, message);
                 break;
 
+
+              
+            case userMessage === `${prefix}setgstatus` || 
+              userMessage === `${prefix}togroupstatus`:
+                await setGroupStatusCommand(sock, chatId, message);
+                break;
+
+              
               
             case userMessage === `${prefix}meme`:
                 await memeCommand(sock, chatId, message);
