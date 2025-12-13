@@ -7,13 +7,13 @@ async function ytsCommand(sock, chatId, senderId, message, userMessage) {
 
         if (!query) {
             return await sock.sendMessage(chatId, {
-                text: `🔍 *YouTube Search Command*\n\nUsage:\n.yts <search_query>\n\nExample:\n.yts sameer kutti\n.yts latest songs\n.yts tutorial videos`
+                text: `🔍 *YouTube Search Command*\n\nUsage:\n.yts <search_query>\n\nExample:\n.yts Godzilla\n.yts latest songs\n.yts tutorial for JUNE-X`
             });
         }
 
         await sock.sendMessage(chatId, {
-            text: `🔎 Searching YouTube for "${query}"...`
-        });
+            text: `🌍 Searching YouTube Results for: "${query}"...`
+        },{ quoted: message });
 
         let searchResults;
         try {
@@ -33,7 +33,7 @@ async function ytsCommand(sock, chatId, senderId, message, userMessage) {
             });
         }
 
-        let resultMessage = `🌍 *YouTube Search Results for:* "${query}"\n\n`;
+        let resultMessage = `📑 *YOUTUBE SEARCH RESULTS:* "${query}"\n\n`;
 
         videos.forEach((video, index) => {
             const duration = video.timestamp || 'N/A';
@@ -51,7 +51,7 @@ async function ytsCommand(sock, chatId, senderId, message, userMessage) {
         resultMessage += `🌍 *Tip:* Use play <url> to download audio\n`;
         resultMessage += `🗺️ Use video <url> to download video`;
 
-        await sock.sendMessage(chatId, { text: resultMessage });
+        await sock.sendMessage(chatId, { text: resultMessage },{ quoted: message});
 
     } catch (error) {
         console.error('YouTube search command error:', error);
