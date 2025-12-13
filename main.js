@@ -231,6 +231,7 @@ const { handleDevReact, normalizeJidToDigits } = require('./commands/devReact');
 const leaveGroupCommand = require('./commands/leave');
 const kickAllCommand = require('./commands/kickAll');
 const { blockCommand, unblockCommand, blocklistCommand } = require('./commands/blockUnblock');
+const ytsCommand = require('./commands/yts');
 /*━━━━━━━━━━━━━━━━━━━━*/
 // Global settings
 /*━━━━━━━━━━━━━━━━━━━━*/
@@ -1071,6 +1072,11 @@ const fake = createFakeContact(message);
                 const match = userMessage.slice((prefix + 'chatbot').length).trim();
                 await handleChatbotCommand(sock, chatId, message, match);
                 break;
+
+        case userMessage.startsWith(`${prefix}yts`) || 
+             userMessage.startsWith(`${prefix}ytsearch`):
+             await ytsCommand(sock, chatId, senderId, message, userMessage);
+               break;
 
             case userMessage.startsWith(`${prefix}take`):
                 const takeArgs = rawText.slice((prefix + 'take').length).trim().split(' ');
