@@ -1,118 +1,136 @@
-const moment = require('moment-timezone');
 const fetch = require('node-fetch');
+const https = require('https');
 const fs = require('fs');
-const path = require('path');
+const { promisify } = require('util');
+const stream = require('stream');
+const pipeline = promisify(stream.pipeline);
 
 async function gitcloneCommand(sock, chatId, message) {
-    /*━━━━━━━━━━━━━━━━━━━━*/
-    // fake contact 
-    /*━━━━━━━━━━━━━━━━━━━━*/
-   
-    function createFakeContact(message) {
-        return {
-            key: {
-                participants: "0@s.whatsapp.net",
-                remoteJid: "status@broadcast",
-                fromMe: false,
-                id: "JUNE-X"
-            },
-            message: {
-                contactMessage: {
-                    vcard: `BEGIN:VCARD\nVERSION:3.0\nN:Sy;Bot;;;\nFN:JUNE MD\nitem1.TEL;waid=${message.key.participant?.split('@')[0] || message.key.remoteJid.split('@')[0]}:${message.key.participant?.split('@')[0] || message.key.remoteJid.split('@')[0]}\nitem1.X-ABLabel:Ponsel\nEND:VCARD`
-                }
-            },
-            participant: "0@s.whatsapp.net"
-        };
-    }
-
     try {
-        const fkontak = createFakeContact(message);
-        const pushname = message.pushName || "Unknown User";
+        const pushname = message.pushName || "User";
         
-        // Ask for GitHub repository URL
-        if (!message.text || message.text.split(' ').length < 2) {
+        // Check if user wants to download or just get commands
+        const args = message.text.split(' ');
+        if (args.length < 2) {
             await sock.sendMessage(chatId, { 
-                text: '❌ *Usage:* .gitclone <github-repo-url>\n\n*Example:* .gitclone https://github.com/vinpink2/June-md' 
-            }, { quoted: fkontak });
+                text: '❌ *Usage:* .gitclone <github-repo-url> [--zip]\n*Example:* .gitclone https://github.com/user/repo\n*Example with download:* .gitclone https://github.com/user/repo --zip' 
+            });
             return;
         }
 
-        const repoUrl = message.text.split(' ')[1].trim();
+        const repoUrl = args[1].trim();
+        const downloadZip = args.includes('--zip');
         
         // Extract username and repo name from URL
         const urlMatch = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
         if (!urlMatch) {
             await sock.sendMessage(chatId, { 
-                text: '❌ Invalid GitHub URL format. Please provide a valid GitHub repository URL.' 
-            }, { quoted: fkontak });
+                text: '❌ Invalid GitHub URL format. Please provide a valid URL like: https://github.com/user/repo' 
+            });
             return;
         }
 
         const username = urlMatch[1];
         const repoName = urlMatch[2].replace('.git', '');
         
-        // Fetch repository data
-        const apiUrl = `https://api.github.com/repos/${username}/${repoName}`;
-        const res = await fetch(apiUrl);
-        
-        if (!res.ok) {
-            if (res.status === 404) {
-                throw new Error('Repository not found. Check the URL and try again.');
-            }
-            throw new Error(`GitHub API Error: ${res.status}`);
-        }
-        
-        const json = await res.json();
-
-        // Generate git clone command
-        const gitCloneCmd = `git clone ${json.clone_url}`;
+        // Generate git clone commands
+        const gitCloneCmd = `git clone ${repoUrl}`;
         const sshCloneCmd = `git clone git@github.com:${username}/${repoName}.git`;
         
-        // Create informative message
-        let txt = `🔹  *𝙶𝙸𝚃 𝙲𝙻𝙾𝙽𝙴 𝙲𝙾𝙼𝙼𝙰𝙽𝙳*\n\n`;
-        txt += `🔸  *Repository* : ${json.full_name}\n`;
-        txt += `🔸  *Description* : ${json.description || 'No description'}\n`;
-        txt += `🔸  *Language* : ${json.language || 'Not specified'}\n`;
-        txt += `🔸  *Stars* : ⭐ ${json.stargazers_count}\n`;
-        txt += `🔸  *Forks* : 🍴 ${json.forks_count}\n`;
-        txt += `🔸  *Last Updated* : ${moment(json.updated_at).format('DD/MM/YY - HH:mm:ss')}\n\n`;
-        
-        txt += `🔹  *Clone with HTTPS:*\n\`\`\`${gitCloneCmd}\`\`\`\n`;
-        txt += `🔹  *Clone with SSH:*\n\`\`\`${sshCloneCmd}\`\`\`\n`;
-        
-        txt += `🔹  *Alternative:*\n`;
-        txt += `• Download ZIP: ${json.html_url}/archive/refs/heads/${json.default_branch}.zip\n\n`;
-        
-        txt += `Hey👋 ${pushname}, _Use the commands above to clone this repository!_`;
+        if (downloadZip) {
+            // Send downloading message
+            await sock.sendMessage(chatId, { 
+                text: `⏳ *Downloading repository...*\nRepository: ${username}/${repoName}\nPlease wait...` 
+            });
 
-        // Send with image (using same image as githubCommand)
-        const imgPath = path.join(__dirname, '../assets/menu2.jpg');
-        const imgBuffer = fs.readFileSync(imgPath);
-
-        await sock.sendMessage(chatId, {
-            image: imgBuffer,
-            caption: txt,
-            contextInfo: {
-                forwardingScore: 1,
-                isForwarded: false,
-                forwardedNewsletterMessageInfo: {
-                    newsletterJid: '@newsletter',
-                    newsletterName: 'June Official',
-                    serverMessageId: -1
-                }
+            // Fetch repository info to get default branch
+            const apiUrl = `https://api.github.com/repos/${username}/${repoName}`;
+            const res = await fetch(apiUrl);
+            
+            if (!res.ok) {
+                throw new Error(`Repository not found or access denied (Status: ${res.status})`);
             }
-        }, { quoted: fkontak });
+            
+            const repoInfo = await res.json();
+            const defaultBranch = repoInfo.default_branch || 'main';
+            
+            // Download ZIP URL
+            const zipUrl = `https://github.com/${username}/${repoName}/archive/refs/heads/${defaultBranch}.zip`;
+            const tempFilePath = `./temp_${username}_${repoName}.zip`;
+            
+            try {
+                // Download the ZIP file
+                const response = await fetch(zipUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to download ZIP file (Status: ${response.status})`);
+                }
+                
+                // Save to temporary file
+                const fileStream = fs.createWriteStream(tempFilePath);
+                await pipeline(response.body, fileStream);
+                
+                // Read file as buffer
+                const fileBuffer = fs.readFileSync(tempFilePath);
+                const fileSize = fileBuffer.length;
+                
+                // Check file size (WhatsApp has limits, usually 16MB for documents)
+                const maxSize = 15 * 1024 * 1024; // 15MB for safety
+                
+                if (fileSize > maxSize) {
+                    fs.unlinkSync(tempFilePath); // Clean up
+                    await sock.sendMessage(chatId, { 
+                        text: `📦 *Repository too large*\n\nRepository: ${username}/${repoName}\nFile size: ${(fileSize / (1024 * 1024)).toFixed(2)}MB\n\nMax allowed size: 15MB\n\nHere are the clone commands instead:\n\n\`\`\`${gitCloneCmd}\`\`\`\n\`\`\`${sshCloneCmd}\`\`\`` 
+                    });
+                    return;
+                }
+                
+                // Send the ZIP file
+                await sock.sendMessage(chatId, {
+                    document: fileBuffer,
+                    fileName: `${username}_${repoName}.zip`,
+                    mimetype: 'application/zip',
+                    caption: `📦 *Repository Downloaded*\n\n🔹 Repository: ${username}/${repoName}\n🔹 Branch: ${defaultBranch}\n🔹 Size: ${(fileSize / (1024 * 1024)).toFixed(2)}MB\n🔹 Downloaded for: ${pushname}\n\n*Clone commands:*\nHTTPS: \`${gitCloneCmd}\`\nSSH: \`${sshCloneCmd}\``
+                });
+                
+                // Clean up temporary file
+                fs.unlinkSync(tempFilePath);
+                
+                // Success reaction
+                await sock.sendMessage(chatId, {
+                    react: { text: '✅', key: message.key }
+                });
+                
+            } catch (downloadError) {
+                // Clean up temp file if exists
+                if (fs.existsSync(tempFilePath)) {
+                    fs.unlinkSync(tempFilePath);
+                }
+                throw downloadError;
+            }
+            
+        } else {
+            // Just send the clone commands
+            let txt = `📂 *Git Clone Commands*\n\n`;
+            txt += `🔹 *Repository:* ${username}/${repoName}\n\n`;
+            txt += `🔸 *Clone with HTTPS:*\n\`\`\`${gitCloneCmd}\`\`\`\n`;
+            txt += `🔸 *Clone with SSH:*\n\`\`\`${sshCloneCmd}\`\`\`\n\n`;
+            txt += `📦 *Want the ZIP file?*\nUse: \`.gitclone ${repoUrl} --zip\`\n\n`;
+            txt += `*Hey ${pushname}, use the commands above to clone this repository!*`;
 
-        // Success reaction
-        await sock.sendMessage(chatId, {
-            react: { text: '⚡', key: message.key }
-        });
+            await sock.sendMessage(chatId, { text: txt });
+
+            // Success reaction
+            await sock.sendMessage(chatId, {
+                react: { text: '📂', key: message.key }
+            });
+        }
 
     } catch (error) {
         console.error('Git Clone Error:', error);
         await sock.sendMessage(chatId, { 
-            text: `❌ Error: ${error.message}\n\nPlease make sure:\n1. The repository URL is correct\n2. The repository is public\n3. You have internet connection` 
-        }, { quoted: message });
+            text: `❌ Error: ${error.message}\n\nPlease ensure:\n1. Repository exists and is public\n2. URL is correct\n3. Try again later if rate limited` 
+        });
     }
 }
 
