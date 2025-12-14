@@ -14,18 +14,29 @@ async function setGroupStatusCommand(sock, chatId, msg) {
         const quotedMessage = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
         const commandRegex = /^[.!#/]?(togstatus|swgc|groupstatus)\s*/i;
 
-        // ✅ Show help if only command is typed
-        if (!quotedMessage && (!messageText.trim() || commandRegex.test(messageText.trim()))) {
+        // ✅ Show help if only command is typed without quote
+        if (!quotedMessage && (!messageText.trim() || messageText.trim().match(commandRegex))) {
             return sock.sendMessage(chatId, { text: getHelpText() });
         }
 
-        // ✅ Extract caption (simplified, no "|")
-        let caption = extractCaption(messageText, commandRegex);
+        let payload = null;
+        
+        // ✅ Handle quoted message (image, audio, sticker, or text)
+        if (quotedMessage) {
+            payload = await buildPayloadFromQuoted(quotedMessage);
+        } 
+        // ✅ Handle plain text command (only text after command)
+        else if (messageText.trim()) {
+            // Extract only the text after the command
+            const textContent = messageText.replace(commandRegex, '').trim();
+            if (textContent) {
+                payload = { text: textContent };
+            } else {
+                return sock.sendMessage(chatId, { text: getHelpText() });
+            }
+        }
 
-        // ✅ Build payload
-        const payload = quotedMessage ? await buildPayloadFromQuoted(quotedMessage, caption) : { text: caption };
-
-        if (!caption && !quotedMessage) {
+        if (!payload) {
             return sock.sendMessage(chatId, { text: getHelpText() });
         }
 
@@ -33,7 +44,9 @@ async function setGroupStatusCommand(sock, chatId, msg) {
         await sendGroupStatus(sock, chatId, payload);
 
         const mediaType = detectMediaType(quotedMessage);
-        await sock.sendMessage(chatId, { text: `✅ ${mediaType} status sent!${caption ? `\nCaption: "${caption}"` : ''}` });
+        await sock.sendMessage(chatId, { 
+            text: `✅ ${mediaType} status sent successfully!${payload.caption ? `\nCaption: "${payload.caption}"` : ''}` 
+        });
 
     } catch (error) {
         console.error('Error in togstatus command:', error);
@@ -45,37 +58,42 @@ async function setGroupStatusCommand(sock, chatId, msg) {
 
 // 📌 Short help text
 function getHelpText() {
-    return `📌 *Group Status*\n\n` +
-           `• Command → Help\n` +
-           `• Command + text → Text\n` +
-           `• Reply img/audio/sticker + command → Media\n\n` +
-           `*Examples:*\n` +
-           `• \`!togstatus Hello\`\n` +
-           `• Reply photo: \`!togstatus Nice!\``;
-}
-
-// 📌 Extract caption from text (no "|" needed)
-function extractCaption(messageText, commandRegex) {
-    const fullText = messageText.replace(commandRegex, '').trim();
-    return fullText || '';
+    return `📌 *Group Status Command*\n\n` +
+           `*Usage:*\n` +
+           `• \`!togstatus your text here\` - Send text status\n` +
+           `• Reply to an image/audio/sticker with \`!togstatus\` - Send media status\n` +
+           `• Reply to text with \`!togstatus\` - Send quoted text as status\n\n` +
+           `*Note:* Captions are only supported for images.`;
 }
 
 // 📌 Build payload from quoted message
-async function buildPayloadFromQuoted(quotedMessage, caption) {
+async function buildPayloadFromQuoted(quotedMessage) {
     if (quotedMessage.imageMessage) {
         const buffer = await downloadToBuffer(quotedMessage.imageMessage, 'image');
-        return { image: buffer, caption };
+        return { 
+            image: buffer, 
+            caption: quotedMessage.imageMessage.caption || ''
+        };
     }
     if (quotedMessage.audioMessage) {
         const buffer = await downloadToBuffer(quotedMessage.audioMessage, 'audio');
         const audioVn = await toVN(buffer);
-        return { audio: audioVn, mimetype: "audio/ogg; codecs=opus", ptt: true, caption };
+        return { 
+            audio: audioVn, 
+            mimetype: "audio/ogg; codecs=opus", 
+            ptt: true 
+        };
     }
     if (quotedMessage.stickerMessage) {
         const buffer = await downloadToBuffer(quotedMessage.stickerMessage, 'sticker');
         return { sticker: buffer };
     }
-    return { text: caption };
+    if (quotedMessage.conversation || quotedMessage.extendedTextMessage?.text) {
+        // Extract only the text content from the quoted message
+        const textContent = quotedMessage.conversation || quotedMessage.extendedTextMessage?.text || '';
+        return { text: textContent };
+    }
+    return null;
 }
 
 // 📌 Detect media type
