@@ -25,7 +25,7 @@ async function ytsCommand(sock, chatId, senderId, message, userMessage) {
             });
         }
 
-        const videos = (searchResults && searchResults.videos) ? searchResults.videos.slice(0, 20) : [];
+        const videos = (searchResults && searchResults.videos) ? searchResults.videos.slice(0, 15) : [];
 
         if (videos.length === 0) {
             return await sock.sendMessage(chatId, {
