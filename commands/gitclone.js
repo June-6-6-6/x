@@ -1,5 +1,4 @@
 const fetch = require('node-fetch');
-const https = require('https');
 const fs = require('fs');
 const { promisify } = require('util');
 const stream = require('stream');
@@ -7,10 +6,20 @@ const pipeline = promisify(stream.pipeline);
 
 async function gitcloneCommand(sock, chatId, message) {
     try {
-        const pushname = message.pushName || "User";
+        // Check if message has text content
+        const messageText = message?.message?.conversation || 
+                           message?.message?.extendedTextMessage?.text || 
+                           message?.text || 
+                           '';
+        
+        // Extract pushname safely
+        const pushname = message?.pushName || 
+                        message?.notify || 
+                        message?.verifiedName || 
+                        "User";
         
         // Check if user wants to download or just get commands
-        const args = message.text.split(' ');
+        const args = messageText.split(' ');
         if (args.length < 2) {
             await sock.sendMessage(chatId, { 
                 text: '❌ *Usage:* .gitclone <github-repo-url> [--zip]\n*Example:* .gitclone https://github.com/user/repo\n*Example with download:* .gitclone https://github.com/user/repo --zip' 
@@ -56,7 +65,7 @@ async function gitcloneCommand(sock, chatId, message) {
             
             // Download ZIP URL
             const zipUrl = `https://github.com/${username}/${repoName}/archive/refs/heads/${defaultBranch}.zip`;
-            const tempFilePath = `./temp_${username}_${repoName}.zip`;
+            const tempFilePath = `./temp_${username}_${repoName}_${Date.now()}.zip`;
             
             try {
                 // Download the ZIP file
@@ -69,6 +78,7 @@ async function gitcloneCommand(sock, chatId, message) {
                 // Save to temporary file
                 const fileStream = fs.createWriteStream(tempFilePath);
                 await pipeline(response.body, fileStream);
+                fileStream.close();
                 
                 // Read file as buffer
                 const fileBuffer = fs.readFileSync(tempFilePath);
@@ -97,9 +107,11 @@ async function gitcloneCommand(sock, chatId, message) {
                 fs.unlinkSync(tempFilePath);
                 
                 // Success reaction
-                await sock.sendMessage(chatId, {
-                    react: { text: '✅', key: message.key }
-                });
+                if (message.key) {
+                    await sock.sendMessage(chatId, {
+                        react: { text: '✅', key: message.key }
+                    });
+                }
                 
             } catch (downloadError) {
                 // Clean up temp file if exists
@@ -121,9 +133,11 @@ async function gitcloneCommand(sock, chatId, message) {
             await sock.sendMessage(chatId, { text: txt });
 
             // Success reaction
-            await sock.sendMessage(chatId, {
-                react: { text: '📂', key: message.key }
-            });
+            if (message.key) {
+                await sock.sendMessage(chatId, {
+                    react: { text: '📂', key: message.key }
+                });
+            }
         }
 
     } catch (error) {
