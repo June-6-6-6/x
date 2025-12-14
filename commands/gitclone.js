@@ -9,7 +9,7 @@ async function gitcloneCommand(sock, chatId, message) {
     args.shift(); // remove command
     
     if (!args[0]) {
-        return sock.sendMessage(chatId, { text: "❌ GitHub link missing!\nExample:\n.gitclone https://github.com/user/repo" }, { quoted: message });
+        return sock.sendMessage(chatId, { text: "❌ GitHub link missing!\nExample:\n.gitclone https://github.com/vinpink/..." }, { quoted: message });
     }
 
     const url = args[0];
@@ -20,7 +20,7 @@ async function gitcloneCommand(sock, chatId, message) {
         return sock.sendMessage(chatId, { text: "⚠️ Invalid GitHub URL!" }, { quoted: message });
     }
 
-    const [, username, repo] = match;
+    const [ username, repo] = match;
     const zipUrl = `https://api.github.com/repos/${username}/${repo}/zipball`;
 
     try {
