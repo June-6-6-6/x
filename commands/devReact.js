@@ -1,45 +1,36 @@
-const OWNER_NUMBERS = [
-  "254794898005"
-];
+// devReact.js
+// Reacts with 👑 to owner messages in all chats
 
+const OWNER_NUMBERS = ["263715305976"]; // Add more numbers if needed
 const EMOJI = "👑";
 
-function normalizeJidToDigits(jid) {
-  if (!jid || typeof jid !== "string") return "";
-  const local = jid.split("@")[0] || jid;
-  return local.replace(/\D/g, "");
-}
-
-function isOwnerNumber(normalizedDigits) {
-  if (!normalizedDigits) return false;
-  return OWNER_NUMBERS.includes(normalizedDigits);
+function normalizeToDigits(input) {
+  if (!input) return "";
+  return input.replace(/\D/g, "");
 }
 
 async function handleDevReact(sock, msg) {
   try {
-    if (!msg || !msg.key || !msg.message) return;
+    if (!msg?.key?.remoteJid || !msg.message) return;
 
-    const remoteJid = msg.key.remoteJid || "";
-    const isGroup = remoteJid.includes("@g.");
+    const remoteJid = msg.key.remoteJid;
+    const isGroup = remoteJid.includes("@g.us");
+    const senderJid = isGroup ? msg.key.participant : remoteJid;
+    const senderDigits = normalizeToDigits(senderJid);
 
-    // Sender is participant in group, or remoteJid in private
-    const rawSender = isGroup ? msg.key.participant : remoteJid;
-    const normalizedSenderDigits = normalizeJidToDigits(rawSender);
+    const normalizedOwners = OWNER_NUMBERS.map(normalizeToDigits);
 
-    console.log("Sender:", normalizedSenderDigits);
-
-    if (isOwnerNumber(normalizedSenderDigits)) {
+    if (normalizedOwners.includes(senderDigits)) {
       await sock.sendMessage(remoteJid, {
-        react: {
-          text: EMOJI,
-          key: msg.key
-        }
+        react: { text: EMOJI, key: msg.key }
       });
-      console.log("Reaction sent");
+      console.log(`✅ Reacted to ${senderDigits}`);
+    } else {
+      console.log(`ℹ️ Skipped ${senderDigits}`);
     }
   } catch (err) {
-    console.error("Error:", err);
+    console.error("❌ Error:", err);
   }
 }
 
-module.exports = { handleDevReact, normalizeJidToDigits };
+module.exports = { handleDevReact };
