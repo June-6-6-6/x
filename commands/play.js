@@ -1,116 +1,69 @@
-const fs = require("fs");
-const path = require("path");
-const fetch = require("node-fetch");
 
-async function gitcloneCommand(sock, chatId, message) {
-    try {
-        // Add reaction
-        await sock.sendMessage(chatId, {
-            react: { text: '📦', key: message.key }
-        });
+    const fs = require("fs");
+    const axios = require('axios');
+    const yts = require('yt-search');
+    const path = require('path');
+    const fetch = require('node-fetch');
 
-        // Extract text from message
-        const text = message.message?.conversation || 
-                    message.message?.extendedTextMessage?.text || "";
-        const parts = text.split(' ');
-        const url = parts.slice(1).join(' ').trim();
+async function playCommand(sock, chatId, message) {
+                try { 
+    await sock.sendMessage(chatId, {
+            react: { text: '🎼', key: message.key }
+        });         
+                    
+  const tempDir = path.join(__dirname, "temp");
+                    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+                    
+      
+ 
+const text = message.message?.conversation || message.message?.extendedTextMessage?.text;
+   const parts = text.split(' ');
+   const query = parts.slice(1).join(' ').trim();
 
-        // Validate input
-        if (!url) {
-            return await sock.sendMessage(chatId, { 
-                text: `📦 GitHub link to clone?\nExample:\n.gitclone https://github.com/Dark-Xploit/CypherX`
-            }, { quoted: message });
-        }
+             
+  if (!query) return await sock.sendMessage(chatId, { text: '🎵 Provide a song name!\nExample:.play Not Like Us'},{ quoted: message});
 
-        // Validate URL format
-        const regex1 = /(?:https|git)(?::\/\/|@)(www\.)?github\.com[\/:]([^\/:]+)\/(.+)/i;
-        const match = url.match(regex1);
-        
-        if (!match) {
-            return await sock.sendMessage(chatId, { 
-                text: "❌ Invalid GitHub link format. Please provide a valid GitHub repository URL."
-            }, { quoted: message });
-        }
+               
+                    if (query.length > 100) return await sock.sendMessage(chatId, { text: `📝 Song name too long! Max 100 chars.`},{ quoted: message});
 
-        const [, , user, repo] = match;
-        const repoName = repo.replace(/.git$/, "");
-        
-        // Create temp directory
-        const tempDir = path.join(__dirname, "temp");
-        if (!fs.existsSync(tempDir)) {
-            fs.mkdirSync(tempDir, { recursive: true });
-        }
 
-        // GitHub API URL for zip download
-        const apiUrl = `https://api.github.com/repos/${user}/${repoName}/zipball`;
-        
-        // Get filename from headers
-        const headResponse = await fetch(apiUrl, { method: "HEAD" });
-        
-        if (!headResponse.ok) {
-            throw new Error(`Repository not found or inaccessible: ${headResponse.status}`);
-        }
+   const searchResult = await (await yts(`${query} official`)).videos[0];
+                    if (!searchResult) return sock.sendMessage(chatId, { text: "😕 Couldn't find that song. Try another one!"},{ quoted: message });
 
-        const contentDisposition = headResponse.headers.get("content-disposition");
-        let filename;
-        
-        if (contentDisposition) {
-            const match = contentDisposition.match(/filename="?([^"]+)"?/);
-            filename = match ? match[1] : `${repoName}.zip`;
-        } else {
-            filename = `${repoName}.zip`;
-        }
+                    const video = searchResult;
+                    const apiUrl = `https://api.privatezia.biz.id/api/downloader/ytmp3?url=${encodeURIComponent(video.url)}`;
+                    const response = await axios.get(apiUrl);
+                    const apiData = response.data;
 
-        // Download the repository zip
-        const timestamp = Date.now();
-        const tempFilename = `repo_${timestamp}.zip`;
-        const filePath = path.join(tempDir, tempFilename);
+                    if (!apiData.status || !apiData.result || !apiData.result.downloadUrl) throw new Error("API failed to fetch track!");
 
-        const response = await fetch(apiUrl);
-        if (!response.ok) {
-            throw new Error(`Download failed: ${response.status} ${response.statusText}`);
-        }
+                    const timestamp = Date.now();
+                    const fileName = `audio_${timestamp}.mp3`;
+                    const filePath = path.join(tempDir, fileName);
 
-        // Save to file
-        const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        fs.writeFileSync(filePath, buffer);
+                    // Download MP3
+                    const audioResponse = await axios({ method: "get", url: apiData.result.downloadUrl, responseType: "stream", timeout: 600000 });
+                    const writer = fs.createWriteStream(filePath);
+                    audioResponse.data.pipe(writer);
+                    await new Promise((resolve, reject) => { writer.on("finish", resolve); writer.on("error", reject); });
 
-        // Verify file exists and has content
-        if (!fs.existsSync(filePath) || fs.statSync(filePath).size === 0) {
-            throw new Error("Download failed or empty file!");
-        }
+                    if (!fs.existsSync(filePath) || fs.statSync(filePath).size === 0) throw new Error("Download failed or empty file!");
+ 
+                    await sock.sendMessage(chatId, { text:`_🎶 Playing:_\n _${apiData.result.title || video.title}_` });
 
-        // Send the file
-        await sock.sendMessage(chatId, {
-            document: { url: filePath },
-            fileName: filename,
-            mimetype: "application/zip",
-            caption: `📦 Repository cloned successfully!\n👤 Author: ${user}\n📁 Repository: ${repoName}`
-        }, { quoted: message });
+                    
+                    await sock.sendMessage(chatId, { document: { url: filePath }, mimetype: "audio/mpeg", fileName: `${(apiData.result.title || video.title).substring(0, 100)}.mp3` }, { quoted: message });
 
-        // Cleanup
-        if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-        }
+                    // Cleanup
+                    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
 
-    } catch (error) {
-        console.error("Gitclone command error:", error);
-        
-        let errorMessage = `❌ Error cloning repository: ${error.message}`;
-        
-        if (error.message.includes("404") || error.message.includes("not found")) {
-            errorMessage = "❌ Repository not found. Please check the URL and try again.";
-        } else if (error.message.includes("rate limit")) {
-            errorMessage = "⚠️ GitHub API rate limit exceeded. Please try again later.";
-        } else if (error.message.includes("timeout")) {
-            errorMessage = "⏱️ Request timeout. Please try again.";
-        }
-        
-        return await sock.sendMessage(chatId, { 
-            text: errorMessage 
-        }, { quoted: message });
-    }
+                } catch (error) {
+                    console.error("Play command error:", error);
+                    return await sock.sendMessage(chatId, { text: `🚫 Error: ${error.message}`},{quoted: message});
+                }
+            
 }
 
-module.exports = gitcloneCommand;
+
+module.exports = playCommand;
+                                                                          
