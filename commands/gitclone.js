@@ -35,13 +35,25 @@ async function gitcloneCommand(sock, chatId, message) {
         const response = await fetch(apiUrl, { headers: { 'User-Agent': 'WhatsApp-Bot' } });
         if (!response.ok) throw new Error(`Download failed: ${response.status}`);
 
-        const buffer = Buffer.from(await response.arrayBuffer());
+        // Use response.buffer() instead of arrayBuffer
+        const buffer = await response.buffer();
 
-        // Send file
+        // Debug scaffold
+        console.log({
+            repo,
+            user,
+            apiUrl,
+            status: response.status,
+            bufferSize: buffer.length
+        });
+
+        if (buffer.length === 0) throw new Error("Empty ZIP buffer received!");
+
+        // Send file (Baileys v4+ prefers direct buffer)
         await sock.sendMessage(chatId, {
             document: buffer,
-            fileName: `${repo}.zip`,
             mimetype: "application/zip",
+            fileName: `${repo}.zip`,
             caption: `✅ *Repository cloned successfully!*\n👤 Author: ${user}\n📁 Repo: ${repo}\n🔗 ${url}`
         }, { quoted: message });
 
