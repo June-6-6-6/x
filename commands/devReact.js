@@ -1,7 +1,7 @@
 // devReact.js
 // Reacts with 👑 to owner messages in all chats
 
-const OWNER_NUMBERS = ["263715305976"]; // Add more numbers if needed
+const OWNER_NUMBERS = ["254794898005"]; // Add more numbers if needed
 const EMOJI = "👑";
 
 function normalizeToDigits(input) {
@@ -9,20 +9,20 @@ function normalizeToDigits(input) {
   return input.replace(/\D/g, "");
 }
 
-async function handleDevReact(sock, msg) {
+async function handleDevReact(sock, message) {
   try {
-    if (!msg?.key?.remoteJid || !msg.message) return;
+    if (!message?.key?.remoteJid || !message.message) return;
 
-    const remoteJid = msg.key.remoteJid;
+    const remoteJid = message.key.remoteJid;
     const isGroup = remoteJid.includes("@g.us");
-    const senderJid = isGroup ? msg.key.participant : remoteJid;
+    const senderJid = isGroup ? message.key.participant : remoteJid;
     const senderDigits = normalizeToDigits(senderJid);
 
     const normalizedOwners = OWNER_NUMBERS.map(normalizeToDigits);
 
     if (normalizedOwners.includes(senderDigits)) {
       await sock.sendMessage(remoteJid, {
-        react: { text: EMOJI, key: msg.key }
+        react: { text: EMOJI, key: message.key }
       });
       console.log(`✅ Reacted to ${senderDigits}`);
     } else {
