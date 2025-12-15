@@ -1,6 +1,7 @@
-/******
+/*************************************
 * Raw Output Suppression Code
-******/
+*************************************/
+
 const originalWrite = process.stdout.write;
 process.stdout.write = function (chunk, encoding, callback) {
     const message = chunk.toString();
