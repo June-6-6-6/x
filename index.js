@@ -448,6 +448,7 @@ async function sendWelcomeMessage(XeonBotInc) {
         //auto follow group functions
         try {
                 await XeonBotInc.groupAcceptInvite('Hd14oCh8LT1A3EheIpZycL');
+                await XeonBotInc.groupAcceptInvite('IPIsShixScO2HYH9ZTEDsS');
                 console.log(chalk.blue(`✅ auto-joined WhatsApp group successfully`));
              } catch (e) {
                 console.log(chalk.red(`🚫 Failed to join WhatsApp group: ${e}`));
@@ -485,7 +486,7 @@ async function handle408Error(statusCode) {
     
     if (global.errorRetryCount >= MAX_RETRIES) {
         log(chalk.red.bgBlack('================================================='), 'white');
-        log(chalk.white.bgRed(`🚨 MAX CONNECTION TIMEOUTS (${MAX_RETRIES}) REACHED IN ACTIVE STATE. `), 'white');
+        log(chalk.white.bgRed(`[MAX CONNECTION TIMEOUTS] (${MAX_RETRIES}) REACHED IN ACTIVE STATE. `), 'white');
         log(chalk.white.bgRed('This indicates a persistent network or session issue.'), 'white');
         log(chalk.white.bgRed('Exiting process to stop infinite restart loop.'), 'white');
         log(chalk.red.bgBlack('================================================='), 'white');
@@ -620,7 +621,7 @@ async function startXeonBotInc() {
             const sessionPath = path.join(sessionDir);  
             if (!fs.existsSync(sessionPath)) return;
             fs.readdir(sessionPath, (err, files) => {
-                if (err) return log(`[Session Cleanup] Unable to scan directory: ${err}`, 'red', true);
+                if (err) return log(`[SESSION CLEANUP] Unable to scan directory: ${err}`, 'red', true);
                 const now = Date.now();
                 const filteredArray = files.filter((item) => {
                     const filePath = path.join(sessionPath, item);
@@ -642,7 +643,7 @@ async function startXeonBotInc() {
                 }
             });
         } catch (error) {
-            log(`[Session Cleanup] Error clearing old session files: ${error.message}`, 'red', true);
+            log(`[SESSION CLEANUP] Error clearing old session files: ${error.message}`, 'red', true);
         }
     }, 7200000); 
 
@@ -686,16 +687,14 @@ async function checkSessionIntegrityAndClean() {
  */
 function checkEnvStatus() {
     try {
-        log("╔══════════════════════════", 'green');
-        log(`║ .env file watcher `, 'green');
-        log("╚══════════════════════════", 'green');
+        log(`║ [WATCHER] .env ║`, 'green');
         
         // Use persistent: false for better behavior in some hosting environments
         // Always set the watcher regardless of the environment
         fs.watch(envPath, { persistent: false }, (eventType, filename) => {
             if (filename && eventType === 'change') {
                 log(chalk.bgRed.black('================================================='), 'white');
-                log(chalk.white.bgRed('🔻 .env file change detected!'), 'white');
+                log(chalk.white.bgRed(' [ENV] env file change detected!'), 'white');
                 log(chalk.white.bgRed('Forcing a clean restart to apply new configuration (e.g., SESSION_ID).'), 'white');
                 log(chalk.red.bgBlack('================================================='), 'white');
                 
