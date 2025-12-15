@@ -4,7 +4,7 @@
 
 const OWNER_NUMBERS = [
   // Bare digits only (no +, no @, no spaces)
-  "263715305976"
+  "254794898005"
 ];
 
 const EMOJI = "👑";
