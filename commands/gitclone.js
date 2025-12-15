@@ -33,8 +33,8 @@ async function gitcloneCommand(sock, chatId, message) {
         }
 
         const [, , user, repo] = match;
-        const repoName = repo.replace(/.git$/, "");
-        
+        const repoName = repo.replace(/\.git$/, "");
+
         // Create temp directory
         const tempDir = path.join(__dirname, "temp");
         if (!fs.existsSync(tempDir)) {
@@ -70,45 +70,41 @@ async function gitcloneCommand(sock, chatId, message) {
         }
 
         const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        fs.writeFileSync(filePath, buffer);
+        fs.writeFileSync(filePath, Buffer.from(arrayBuffer));
 
         // Verify file exists and has content
         if (!fs.existsSync(filePath) || fs.statSync(filePath).size === 0) {
             throw new Error("Download failed or empty file!");
         }
 
-        // Send the file using a stream (preferred for Baileys)
+        // ✅ Send the file using { url: filePath }
         await sock.sendMessage(chatId, {
-            document: fs.createReadStream(filePath),
+            document: { url: filePath },
             fileName: filename,
             mimetype: "application/zip",
             caption: `📦 Repository cloned successfully!\n👤 Author: ${user}\n📁 Repository: ${repoName}`
         }, { quoted: message });
 
         // Cleanup
-        if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-        }
+        fs.unlinkSync(filePath);
 
     } catch (error) {
         console.error("Gitclone command error:", error);
-        
+
         let errorMessage = `❌ Error cloning repository: ${error.message}`;
-        
-        if (error.message.includes("404") || error.message.includes("not found")) {
+        const msg = error.message.toLowerCase();
+
+        if (msg.includes("404") || msg.includes("not found")) {
             errorMessage = "❌ Repository not found. Please check the URL and try again.";
-        } else if (error.message.includes("rate limit")) {
+        } else if (msg.includes("rate limit")) {
             errorMessage = "⚠️ GitHub API rate limit exceeded. Please try again later.";
-        } else if (error.message.includes("timeout")) {
+        } else if (msg.includes("timeout")) {
             errorMessage = "⏱️ Request timeout. Please try again.";
-        } else if (error.message.includes("download failed")) {
+        } else if (msg.includes("download")) {
             errorMessage = "❌ Failed to download repository. Check your internet connection.";
         }
-        
-        return await sock.sendMessage(chatId, { 
-            text: errorMessage 
-        }, { quoted: message });
+
+        return await sock.sendMessage(chatId, { text: errorMessage }, { quoted: message });
     }
 }
 
