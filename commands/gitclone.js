@@ -11,7 +11,7 @@ async function gitcloneCommand(sock, chatId, message) {
 
         // Extract text from message
         const text = message.message?.conversation || 
-                    message.message?.extendedTextMessage?.text || "";
+                     message.message?.extendedTextMessage?.text || "";
         const parts = text.split(' ');
         const url = parts.slice(1).join(' ').trim();
 
@@ -43,17 +43,15 @@ async function gitcloneCommand(sock, chatId, message) {
 
         // GitHub API URL for zip download
         const apiUrl = `https://api.github.com/repos/${user}/${repoName}/zipball`;
-        
+
         // Get filename from headers
         const headResponse = await fetch(apiUrl, { method: "HEAD" });
-        
         if (!headResponse.ok) {
             throw new Error(`Repository not found or inaccessible: ${headResponse.status}`);
         }
 
         const contentDisposition = headResponse.headers.get("content-disposition");
         let filename;
-        
         if (contentDisposition) {
             const match = contentDisposition.match(/filename="?([^"]+)"?/);
             filename = match ? match[1] : `${repoName}.zip`;
@@ -71,7 +69,6 @@ async function gitcloneCommand(sock, chatId, message) {
             throw new Error(`Download failed: ${response.status} ${response.statusText}`);
         }
 
-        // Save to file
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         fs.writeFileSync(filePath, buffer);
@@ -81,12 +78,9 @@ async function gitcloneCommand(sock, chatId, message) {
             throw new Error("Download failed or empty file!");
         }
 
-        // Read the file into a Buffer
-        const fileBuffer = fs.readFileSync(filePath);
-
-        // Send the file using the Buffer
+        // Send the file using a stream (preferred for Baileys)
         await sock.sendMessage(chatId, {
-            document: fileBuffer, // Pass the Buffer directly
+            document: fs.createReadStream(filePath),
             fileName: filename,
             mimetype: "application/zip",
             caption: `📦 Repository cloned successfully!\n👤 Author: ${user}\n📁 Repository: ${repoName}`
