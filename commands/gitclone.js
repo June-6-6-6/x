@@ -81,9 +81,12 @@ async function gitcloneCommand(sock, chatId, message) {
             throw new Error("Download failed or empty file!");
         }
 
-        // Send the file
+        // Read the file into a Buffer
+        const fileBuffer = fs.readFileSync(filePath);
+
+        // Send the file using the Buffer
         await sock.sendMessage(chatId, {
-            document: { url: filePath },
+            document: fileBuffer, // Pass the Buffer directly
             fileName: filename,
             mimetype: "application/zip",
             caption: `📦 Repository cloned successfully!\n👤 Author: ${user}\n📁 Repository: ${repoName}`
@@ -105,6 +108,8 @@ async function gitcloneCommand(sock, chatId, message) {
             errorMessage = "⚠️ GitHub API rate limit exceeded. Please try again later.";
         } else if (error.message.includes("timeout")) {
             errorMessage = "⏱️ Request timeout. Please try again.";
+        } else if (error.message.includes("download failed")) {
+            errorMessage = "❌ Failed to download repository. Check your internet connection.";
         }
         
         return await sock.sendMessage(chatId, { 
