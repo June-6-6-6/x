@@ -44,4 +44,4 @@ async function handledDevReact(sock, message) {
   }
 }
 
-module.exports = { handledDevReact };
+module.exports = handledDevReact;
