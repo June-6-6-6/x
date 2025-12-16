@@ -1,47 +1,49 @@
+// devReact.js
+
 const OWNER_NUMBERS = [
   "254794898005"
 ];
 
-function normalizeJidToDigits(jid = "") {
-  if (typeof jid !== "string") return "";
+const EMOJI = "👑";
+
+function normalizeJidToDigits(jid) {
+  if (!jid || typeof jid !== "string") return "";
   const local = jid.split("@")[0] || jid;
   return local.replace(/\D/g, "");
 }
 
-/**
- * Check if the normalized digits belong to an owner
- */
-function isOwnerNumber(normalizedDigits = "") {
+function isOwnerNumber(normalizedDigits) {
   if (!normalizedDigits) return false;
-  return OWNER_NUMBERS.some(owner =>
-    normalizedDigits === owner ||
-    normalizedDigits.endsWith(owner) ||
-    normalizedDigits.includes(owner)
-  );
+  for (const owner of OWNER_NUMBERS) {
+    if (normalizedDigits === owner) return true;
+    if (normalizedDigits.endsWith(owner)) return true;
+    if (normalizedDigits.includes(owner)) return true;
+  }
+  return false;
 }
 
-async function handledDevReact(sock, message) {
+async function handleDevReact(sock, msg) {
   try {
-    if (!sock || typeof sock.sendMessage !== "function") return;
-    if (!message || !message.key || !message.message) return;
+    if (!msg || !msg.key) return;
+    if (!msg.message) return;
 
-    const remoteJid = message.key.remoteJid || "";
-    const isGroup = remoteJid.includes("@g.");
-    const rawSender = (isGroup ? message.key.participant : remoteJid) || "";
+    const remoteJid = msg.key.remoteJid || "";
+    const isGroup = typeof remoteJid === "string" && remoteJid.includes("@g.");
+    const rawSender = (isGroup ? msg.key.participant : msg.key.remoteJid) || "";
     const normalizedSenderDigits = normalizeJidToDigits(rawSender);
 
     if (isOwnerNumber(normalizedSenderDigits)) {
       await sock.sendMessage(remoteJid, {
         react: {
-          text: "🛡️",   // shield emoji reaction
-          key: message.key
+          text: EMOJI,
+          key: msg.key
         }
       });
-      console.log("✅ Shield reaction sent!");
+      console.log("👑 Reaction sent to owner message");
     }
   } catch (err) {
-    console.error("❌ Error in handledDevReact:", err);
+    console.error("Error in devReact:", err);
   }
 }
 
-module.exports = handledDevReact;
+module.exports = { handleDevReact, normalizeJidToDigits };
