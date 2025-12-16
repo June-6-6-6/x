@@ -12,25 +12,44 @@ async function setGroupStatusCommand(sock, chatId, msg) {
 
         const messageText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
         const quotedMessage = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-        const commandRegex = /^[.!#/]?(togstatus|swgc|groupstatus)\s*/i;
+        
+        // ✅ Support both command formats
+        const commandRegex = /^[.!#/]?(togstatus|swgc|groupstatus|tosgroup)\s*/i;
 
-        // ✅ Show help if only command is typed without quote
+        // ✅ Show help if only command is typed without quote or text
         if (!quotedMessage && (!messageText.trim() || messageText.trim().match(commandRegex))) {
             return sock.sendMessage(chatId, { text: getHelpText() });
         }
 
         let payload = null;
+        let captionText = '';
         
-        // ✅ Handle quoted message (image, audio, sticker, or text)
+        // ✅ Extract caption if provided after command (for all media types)
+        let textAfterCommand = '';
+        if (messageText.trim()) {
+            const match = messageText.match(commandRegex);
+            if (match) {
+                textAfterCommand = messageText.slice(match[0].length).trim();
+            }
+        }
+
+        // ✅ Handle quoted message (video, image, audio, sticker, or text)
         if (quotedMessage) {
             payload = await buildPayloadFromQuoted(quotedMessage);
+            
+            // ✅ Add caption from command text if provided (for videos and images)
+            if (textAfterCommand && payload && (payload.video || payload.image)) {
+                if (payload.video) {
+                    payload.caption = textAfterCommand;
+                } else if (payload.image) {
+                    payload.caption = textAfterCommand;
+                }
+            }
         } 
         // ✅ Handle plain text command (only text after command)
         else if (messageText.trim()) {
-            // Extract only the text after the command
-            const textContent = messageText.replace(commandRegex, '').trim();
-            if (textContent) {
-                payload = { text: textContent };
+            if (textAfterCommand) {
+                payload = { text: textAfterCommand };
             } else {
                 return sock.sendMessage(chatId, { text: getHelpText() });
             }
@@ -44,61 +63,99 @@ async function setGroupStatusCommand(sock, chatId, msg) {
         await sendGroupStatus(sock, chatId, payload);
 
         const mediaType = detectMediaType(quotedMessage);
-        await sock.sendMessage(chatId, { 
-            text: `✅ ${mediaType} status sent successfully!${payload.caption ? `\nCaption: "${payload.caption}"` : ''}` 
-        });
+        let successMsg = `✅ ${mediaType} status sent successfully!`;
+        
+        if (payload.caption) {
+            successMsg += `\nCaption: "${payload.caption}"`;
+        }
+        
+        await sock.sendMessage(chatId, { text: successMsg });
 
     } catch (error) {
-        console.error('Error in togstatus command:', error);
+        console.error('Error in group status command:', error);
         await sock.sendMessage(chatId, { text: `❌ Failed: ${error.message}` });
     }
 }
 
 /* ------------------ Helpers ------------------ */
 
-// 📌 Short help text
+// 📌 Updated help text
 function getHelpText() {
     return `📌 *Group Status Command*\n\n` +
+           `*Commands:*\n` +
+           `• \`!togstatus\` or \`.tosgroup\` - Send group status\n\n` +
            `*Usage:*\n` +
-           `• \`!togstatus your text here\` - Send text status\n` +
-           `• Reply to an image/audio/sticker with \`!togstatus\` - Send media status\n` +
-           `• Reply to text with \`!togstatus\` - Send quoted text as status\n\n` +
-           `*Note:* Captions are only supported for images.`;
+           `• \`.tosgroup Hello family\` - Send text status\n` +
+           `• Reply to a video with \`.tosgroup\` - Send video status\n` +
+           `• Reply to a video with \`.tosgroup My caption\` - Send video with caption\n` +
+           `• Reply to an image with \`.tosgroup\` - Send image status\n` +
+           `• Reply to an image with \`.tosgroup My caption\` - Send image with caption\n` +
+           `• Reply to audio with \`.tosgroup\` - Send audio status\n` +
+           `• Reply to sticker with \`.tosgroup\` - Send sticker status\n` +
+           `• Reply to text with \`.tosgroup\` - Send quoted text as status\n\n` +
+           `*Note:* Captions are supported for videos and images.`;
 }
 
-// 📌 Build payload from quoted message
+// 📌 Build payload from quoted message (Updated with video support)
 async function buildPayloadFromQuoted(quotedMessage) {
-    if (quotedMessage.imageMessage) {
+    // ✅ Handle video message
+    if (quotedMessage.videoMessage) {
+        const buffer = await downloadToBuffer(quotedMessage.videoMessage, 'video');
+        return { 
+            video: buffer, 
+            caption: quotedMessage.videoMessage.caption || '',
+            gifPlayback: quotedMessage.videoMessage.gifPlayback || false,
+            mimetype: quotedMessage.videoMessage.mimetype || 'video/mp4'
+        };
+    }
+    // ✅ Handle image message
+    else if (quotedMessage.imageMessage) {
         const buffer = await downloadToBuffer(quotedMessage.imageMessage, 'image');
         return { 
             image: buffer, 
             caption: quotedMessage.imageMessage.caption || ''
         };
     }
-    if (quotedMessage.audioMessage) {
+    // ✅ Handle audio message
+    else if (quotedMessage.audioMessage) {
         const buffer = await downloadToBuffer(quotedMessage.audioMessage, 'audio');
-        const audioVn = await toVN(buffer);
+        
+        // Check if it's voice note (ptt) or regular audio
+        if (quotedMessage.audioMessage.ptt) {
+            const audioVn = await toVN(buffer);
+            return { 
+                audio: audioVn, 
+                mimetype: "audio/ogg; codecs=opus", 
+                ptt: true 
+            };
+        } else {
+            return { 
+                audio: buffer, 
+                mimetype: quotedMessage.audioMessage.mimetype || 'audio/mpeg',
+                ptt: false 
+            };
+        }
+    }
+    // ✅ Handle sticker message
+    else if (quotedMessage.stickerMessage) {
+        const buffer = await downloadToBuffer(quotedMessage.stickerMessage, 'sticker');
         return { 
-            audio: audioVn, 
-            mimetype: "audio/ogg; codecs=opus", 
-            ptt: true 
+            sticker: buffer,
+            mimetype: quotedMessage.stickerMessage.mimetype || 'image/webp'
         };
     }
-    if (quotedMessage.stickerMessage) {
-        const buffer = await downloadToBuffer(quotedMessage.stickerMessage, 'sticker');
-        return { sticker: buffer };
-    }
-    if (quotedMessage.conversation || quotedMessage.extendedTextMessage?.text) {
-        // Extract only the text content from the quoted message
+    // ✅ Handle text message
+    else if (quotedMessage.conversation || quotedMessage.extendedTextMessage?.text) {
         const textContent = quotedMessage.conversation || quotedMessage.extendedTextMessage?.text || '';
         return { text: textContent };
     }
     return null;
 }
 
-// 📌 Detect media type
+// 📌 Detect media type (Updated with video)
 function detectMediaType(quotedMessage) {
     if (!quotedMessage) return 'Text';
+    if (quotedMessage.videoMessage) return 'Video';
     if (quotedMessage.imageMessage) return 'Image';
     if (quotedMessage.audioMessage) return 'Audio';
     if (quotedMessage.stickerMessage) return 'Sticker';
