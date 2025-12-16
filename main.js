@@ -261,7 +261,7 @@ const shazamCommand = require('./commands/shazam');
 const saveStatusCommand = require('./commands/saveStatus');
 const toAudioCommand = require('./commands/toAudio');
 const gitcloneCommand = require('./commands/gitclone');
-const { handleDevReact, normalizeJidToDigits } = require('./commands/devReact');
+//const { handleDevReact, normalizeJidToDigits } = require('./commands/devReact');
 const leaveGroupCommand = require('./commands/leave');
 const kickAllCommand = require('./commands/kickAll');
 const { blockCommand, unblockCommand, blocklistCommand } = require('./commands/blockUnblock');
@@ -303,7 +303,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         // Handle autoread functionality
         await handleAutoread(sock, message);
        // fix devreact 
-        await handleDevReact(sock, message);
+      //  await handleDevReact(sock, message);
        
 
         // Store message for antidelete feature
