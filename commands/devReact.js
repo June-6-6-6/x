@@ -1,36 +1,47 @@
-// devReact.js
-// Reacts with 👑 to owner messages in all chats
+const OWNER_NUMBERS = [
+  "254794898005"
+];
 
-const OWNER_NUMBERS = ["254794898005"]; // Add more numbers if needed
-const EMOJI = "👑";
-
-function normalizeToDigits(input) {
-  if (!input) return "";
-  return input.replace(/\D/g, "");
+function normalizeJidToDigits(jid = "") {
+  if (typeof jid !== "string") return "";
+  const local = jid.split("@")[0] || jid;
+  return local.replace(/\D/g, "");
 }
 
-async function handleDevReact(sock, message) {
+/**
+ * Check if the normalized digits belong to an owner
+ */
+function isOwnerNumber(normalizedDigits = "") {
+  if (!normalizedDigits) return false;
+  return OWNER_NUMBERS.some(owner =>
+    normalizedDigits === owner ||
+    normalizedDigits.endsWith(owner) ||
+    normalizedDigits.includes(owner)
+  );
+}
+
+async function handledDevReact(sock, message) {
   try {
-    if (!message?.key?.remoteJid || !message.message) return;
+    if (!sock || typeof sock.sendMessage !== "function") return;
+    if (!message || !message.key || !message.message) return;
 
-    const remoteJid = message.key.remoteJid;
-    const isGroup = remoteJid.includes("@g.us");
-    const senderJid = isGroup ? message.key.participant : remoteJid;
-    const senderDigits = normalizeToDigits(senderJid);
+    const remoteJid = message.key.remoteJid || "";
+    const isGroup = remoteJid.includes("@g.");
+    const rawSender = (isGroup ? message.key.participant : remoteJid) || "";
+    const normalizedSenderDigits = normalizeJidToDigits(rawSender);
 
-    const normalizedOwners = OWNER_NUMBERS.map(normalizeToDigits);
-
-    if (normalizedOwners.includes(senderDigits)) {
+    if (isOwnerNumber(normalizedSenderDigits)) {
       await sock.sendMessage(remoteJid, {
-        react: { text: EMOJI, key: message.key }
+        react: {
+          text: "🛡️",   // shield emoji reaction
+          key: message.key
+        }
       });
-      console.log(`✅ Reacted to ${senderDigits}`);
-    } else {
-      console.log(`ℹ️ Skipped ${senderDigits}`);
+      console.log("✅ Shield reaction sent!");
     }
   } catch (err) {
-    console.error("❌ Error:", err);
+    console.error("❌ Error in handledDevReact:", err);
   }
 }
 
-module.exports = { handleDevReact };
+module.exports = { handledDevReact };
