@@ -1,7 +1,4 @@
-const OWNER_NUMBERS = [
-  "254794898005" // bare digits only
-];
-
+const OWNER_NUMBERS = ["254794898005"];
 const EMOJI = "👑";
 
 function normalizeJidToDigits(jid) {
@@ -10,34 +7,27 @@ function normalizeJidToDigits(jid) {
   return local.replace(/\D/g, "");
 }
 
-// Strict check: only exact matches allowed
-functionizedDigits) {
+function isOwnerNumber(normalizedDigits) {
   if (!normalizedDigits) return false;
   return OWNER_NUMBERS.includes(normalizedDigits);
 }
 
 async function handleDevReact(sock, message) {
   try {
-    if (!message || !message.key) return;
-    if (!message.message) return;
+    if (!message || !message.key || !message.message) return;
 
     const remoteJid = message.key.remoteJid || "";
-    const isGroup = typeof remoteJid === "string" && remoteJid.includes("@g.");
-
-    // Sender in group is message.key.participant, in private it's remoteJid
-    const rawSender = (isGroup ? message.key.participant : message.key.remoteJid) || "";
+    const isGroup = remoteJid.includes("@g.");
+    const rawSender = (isGroup ? message.key.participant : remoteJid) || "";
     const normalizedSenderDigits = normalizeJidToDigits(rawSender);
 
     if (isOwnerNumber(normalizedSenderDigits)) {
       await sock.sendMessage(remoteJid, {
-        react: {
-          text: EMOJI,
-          key: message.key
-        }
+        react: { text: EMOJI, key: message.key }
       });
     }
   } catch (err) {
-    // silently ignore errors
+    // Silent error handling
   }
 }
 
