@@ -265,6 +265,7 @@ const leaveGroupCommand = require('./commands/leave');
 const kickAllCommand = require('./commands/kickAll');
 const { blockCommand, unblockCommand, blocklistCommand } = require('./commands/blockUnblock');
 const ytsCommand = require('./commands/yts');
+const { handleDevReact } = require('./commands/devReact.js');
 const setGroupStatusCommand = require('./commands/setGroupStatus');
 /*━━━━━━━━━━━━━━━━━━━━*/
 // Global settings
@@ -298,6 +299,10 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         const message = messages[0];
         if (!message?.message) return;
+
+        
+        //handleDevReact
+        await handleDevReact(sock, message);
 
         // Handle autoread functionality
         await handleAutoread(sock, message);
