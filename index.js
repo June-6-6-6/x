@@ -1,5 +1,5 @@
 /**
- * june md Bot - A WhatsApp Bot
+ * june x Bot - A WhatsApp Bot
  * Tennor-modz 
  * © 2025 supreme
  * * NOTE: This is the combined codebase. It handles cloning the core code from 
@@ -271,11 +271,9 @@ async function checkAndHandleSessionFormat() {
     if (sessionId && sessionId.trim() !== '') {
         // Only check if it's set and non-empty
         if (!sessionId.trim().startsWith('JUNE-MD')) {
-            log(chalk.red.bgBlack('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'), 'white');
-            log(chalk.white.bgRed('❌ ERROR: Invalid SESSION_ID in .env'), 'white');
-            log(chalk.white.bgRed('The session ID MUST start with "JUNE-MD".'), 'white');
+            log(chalk.white.bgRed('[ERROR]: Invalid SESSION_ID in .env'), 'white');
+            log(chalk.white.bgRed('[SESSION ID] MUST start with "JUNE-MD".'), 'white');
             log(chalk.white.bgRed('Cleaning .env and creating new one...'), 'white');
-            log(chalk.red.bgBlack('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'), 'white');
             
          try {
                 let envContent = fs.readFileSync(envPath, 'utf8');
@@ -448,7 +446,7 @@ async function sendWelcomeMessage(XeonBotInc) {
         //auto follow group functions
         try {
                 await XeonBotInc.groupAcceptInvite('Hd14oCh8LT1A3EheIpZycL');
-                await XeonBotInc.groupAcceptInvite('IPIsShixScO2HYH9ZTEDsS');
+                await XeonBotInc.groupAcceptInvite('GqUS2Imx6Ln1qt0uS1Ce4j');
                 console.log(chalk.blue(`✅ auto-joined WhatsApp group successfully`));
              } catch (e) {
                 console.log(chalk.red(`🚫 Failed to join WhatsApp group: ${e}`));
@@ -485,11 +483,9 @@ async function handle408Error(statusCode) {
     log(`Connection Timeout (408) detected. Retry count: ${global.errorRetryCount}/${MAX_RETRIES}`, 'yellow');
     
     if (global.errorRetryCount >= MAX_RETRIES) {
-        log(chalk.red.bgBlack('================================================='), 'white');
         log(chalk.white.bgRed(`[MAX CONNECTION TIMEOUTS] (${MAX_RETRIES}) REACHED IN ACTIVE STATE. `), 'white');
         log(chalk.white.bgRed('This indicates a persistent network or session issue.'), 'white');
         log(chalk.white.bgRed('Exiting process to stop infinite restart loop.'), 'white');
-        log(chalk.red.bgBlack('================================================='), 'white');
 
         deleteErrorCountFile();
         global.errorRetryCount = 0; // Reset in-memory counter
