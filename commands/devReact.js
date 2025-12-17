@@ -11,16 +11,15 @@ function normalizeJidToDigits(jid) {
 }
 
 // Strict check: only exact matches allowed
-function isOwnerNumber(normalizedDigits) {
+functionizedDigits) {
   if (!normalizedDigits) return false;
   return OWNER_NUMBERS.includes(normalizedDigits);
 }
 
 async function handleDevReact(sock, message) {
   try {
-    if (!message || !message.key || !message.message) {
-      return;
-    }
+    if (!message || !message.key) return;
+    if (!message.message) return;
 
     const remoteJid = message.key.remoteJid || "";
     const isGroup = typeof remoteJid === "string" && remoteJid.includes("@g.");
@@ -30,19 +29,15 @@ async function handleDevReact(sock, message) {
     const normalizedSenderDigits = normalizeJidToDigits(rawSender);
 
     if (isOwnerNumber(normalizedSenderDigits)) {
-      console.log(`👑 Owner ${normalizedSenderDigits} detected — sending reaction...`);
-
       await sock.sendMessage(remoteJid, {
         react: {
           text: EMOJI,
           key: message.key
         }
       });
-
-      console.log("✅ Reaction sent!");
     }
   } catch (err) {
-    console.error("❌ Error in handleDevReact:", err);
+    // silently ignore errors
   }
 }
 
