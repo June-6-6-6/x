@@ -265,7 +265,6 @@ const leaveGroupCommand = require('./commands/leave');
 const kickAllCommand = require('./commands/kickAll');
 const { blockCommand, unblockCommand, blocklistCommand } = require('./commands/blockUnblock');
 const ytsCommand = require('./commands/yts');
-const { devReact, normalizeJidToDigits } = require('./commands/devReact.js');
 const setGroupStatusCommand = require('./commands/setGroupStatus');
 /*━━━━━━━━━━━━━━━━━━━━*/
 // Global settings
@@ -344,11 +343,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
             message.message?.imageMessage?.caption?.trim() ||
             message.message?.videoMessage?.caption?.trim() ||
             '';
-        //devReact
-        await devReact(sock, message, chatId);
-
-
-
+        
        
 // fakeQuoted
 
