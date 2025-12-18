@@ -31,3 +31,5 @@ async function devReact(sock, chatId, message) {
         }
     }
 }
+
+module.exports = devReact;
