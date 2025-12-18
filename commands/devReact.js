@@ -1,6 +1,6 @@
 async function devReact(sock, chatId, message) {
     // Extract sender number correctly
-    const sender = message.key.participant || message.key.remoteJid;
+    const sender =  message.key.remoteJid;
     const senderNumber = sender ? sender.split('@')[0] : null;
     
     // Define dev numbers (comma-separated or array)
