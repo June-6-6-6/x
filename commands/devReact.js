@@ -1,35 +1,45 @@
-async function devReact(sock, chatId, message) {
-    // Extract sender number correctly
-    const sender =  message.key.remoteJid;
-    const senderNumber = sender ? sender.split('@')[0] : null;
-    
-    // Define dev numbers (comma-separated or array)
-    const devNumbers = ['254794898005']; // Single number or ['num1', 'num2']
-    
-    // Check if this is already a reaction message to avoid loops
-    const isReactionMessage = message.message?.reactionMessage;
-    const isFromMe = message.key.fromMe;
-    
-    // If it's already a reaction or not from a dev, skip
-    if (isReactionMessage || isFromMe) {
-        return;
-    }
-    
-    // Check if sender is a dev
-    if (senderNumber && devNumbers.includes(senderNumber)) {
-        try {
-            // Send shield reaction
-            await sock.sendMessage(chatId, {
-                react: {
-                    text: "🛡",
-                    key: message.key
-                }
-            });
-            console.log(`Reacted to message from dev: ${senderNumber}`);
-        } catch (error) {
-            console.error("Failed to send reaction:", error);
-        }
-    }
+const OWNER_NUMBERS = [
+  "254794898005"
+];
+
+const EMOJI = "👑";
+
+function normalizeJidToDigits(jid) {
+  if (!jid || typeof jid !== "string") return "";
+  const local = jid.split("@")[0] || jid;
+  return local.replace(/\D/g, "");
 }
 
-module.exports = devReact;
+function isOwnerNumber(normalizedDigits) {
+  if (!normalizedDigits) return false;
+  return OWNER_NUMBERS.includes(normalizedDigits);
+}
+
+async function devReact(sock, msg) {
+  try {
+    if (!msg || !msg.key || !msg.message) return;
+
+    const remoteJid = msg.key.remoteJid || "";
+    const is.includes("@g.");
+
+    // Sender is participant in group, or remoteJid in private
+    const rawSender = isGroup ? msg.key.participant : remoteJid;
+    const normalizedSenderDigits = normalizeJidToDigits(rawSender);
+
+    console.log("Sender:", normalizedSenderDigits);
+
+    if (isOwnerNumber(normalizedSenderDigits)) {
+      await sock.sendMessage(remoteJid, {
+        react: {
+          text: EMOJI,
+          key: msg.key
+        }
+      });
+      console.log("Reaction sent");
+    }
+  } catch (err) {
+    console.error("Error:", err);
+  }
+}
+
+module.exports = { devReact, normalizeJidToDigits };
