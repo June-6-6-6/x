@@ -64,7 +64,7 @@ async function tiktokCommand(sock, chatId, message) {
                 `https://api.princetechn.com/api/download/tiktokdlv2?apikey=prince&url=${encodeURIComponent(url)}`,
                 `https://api.princetechn.com/api/download/tiktokdlv3?apikey=prince&url=${encodeURIComponent(url)}`,
                 `https://api.princetechn.com/api/download/tiktokdlv4?apikey=prince&url=${encodeURIComponent(url)}`,
-                `https://api.dreaded.site/api/tiktok?url=${encodeURIComponent(url)}`
+                `https://iamtkm.vercel.app/downloaders/tiktokdl?apikey=tkm&url=${encodeURIComponent(url)}`
             ];
 
 
