@@ -74,7 +74,7 @@ const generateMenu = (pushname, currentMode, hostName, ping, uptimeFormatted, pr
     let newOwner = getOwnerName();
     const menuSettings = getMenuSettings();
     
-    let menu = `┏❐  *⟢ JUNE - X ⟢*  ❐\n`;
+    let menu = `┏❐⟢ JUNE-X BOT ⟢❐\n`;
     menu += `┃➥ *Prefix:* [${prefix2}]\n`;
     menu += `┃➥ *Owner:* ${newOwner}\n`;
     menu += `┃➥ *Mode:* ${currentMode}\n`;
