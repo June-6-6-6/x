@@ -158,4 +158,4 @@ async function sendAPIErrorMessage(sock, chatId, message, error) {
     }, { quoted: message });
 }
 
-module.exports = { weatherCommand };
+module.exports = weatherCommand;
