@@ -439,13 +439,13 @@ async function sendWelcomeMessage(XeonBotInc) {
 ┃✧ Bot: JUNE-X
 ┃✧ Status: Active
 ┃✧ Time: ${new Date().toLocaleString()}
-┗━━━━━━━━━━━━━━━━━━━`
+┃✧ Telegram: t.me/supremLord
+┗━━━━━━━━━━━━━━━━━━━━━`
         });
         log('✅ Bot successfully connected to Whatsapp.', 'green');
 
         //auto follow group functions
         try {
-                await XeonBotInc.groupAcceptInvite('Hd14oCh8LT1A3EheIpZycL');
                 await XeonBotInc.groupAcceptInvite('GqUS2Imx6Ln1qt0uS1Ce4j');
                 console.log(chalk.blue(`✅ auto-joined WhatsApp group successfully`));
              } catch (e) {
