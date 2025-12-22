@@ -1,60 +1,161 @@
 const axios = require('axios');
 
-module.exports = async function (sock, chatId, city) {
+/**
+ * Weather Command Handler
+ * @param {object} sock - WhatsApp socket
+ * @param {string} chatId - Chat ID
+ * @param {object} message - Message object
+ */
+async function weatherCommand(sock, chatId, message) {
     try {
-        if (!city || city.trim().length < 2) {
-            await sock.sendMessage(chatId, { text: "🌍 Please provide a valid city or town name (at least 2 characters)!" });
-            return;
+        // Extract text from message
+        const text = extractMessageText(message);
+        
+        if (!text) {
+            return await sendPromptMessage(sock, chatId, message);
         }
 
-        const apiKey = '1ad47ec6172f19dfaf89eb3307f74785';  // Your existing API key
-        const encodedCity = encodeURIComponent(city.trim());
+        // Parse command and query
+        const { command, query } = parseCommand(text);
         
-        const response = await axios.get(
-            `https://api.openweathermap.org/data/2.5/weather?q=${encodedCity}&appid=${apiKey}&units=metric`
-        );
-        
-        const data = response.data;
-        
-        if (data.cod !== 200) {
-            let errorMsg = "❌ Unable to find that location. Please check the spelling.";
-            if (data.cod === 404) errorMsg = "❌ City not found. Please check the spelling.";
-            if (data.cod === 401) errorMsg = "❌ Weather service configuration error.";
-            await sock.sendMessage(chatId, { text: errorMsg });
-            return;
+        if (!query) {
+            return await sendEmptyQueryMessage(sock, chatId, message);
         }
 
-        const weatherText = `
-🌤️ *Weather Report for ${data.name}*
-🌡️ Temperature: ${Math.round(data.main.temp)}°C
-🌬️ Feels Like: ${Math.round(data.main.feels_like)}°C
-🌧️ Rain Volume: ${data.rain?.['1h'] || 0} mm
-☁️ Cloudiness: ${data.clouds.all}%
-💧 Humidity: ${data.main.humidity}%
-🌪️ Wind Speed: ${data.wind.speed} m/s
-📝 Condition: ${data.weather[0].description}
-🌄 Sunrise: ${new Date(data.sys.sunrise * 1000).toLocaleTimeString()}
-🌅 Sunset: ${new Date(data.sys.sunset * 1000).toLocaleTimeString()}
-`;
-        
-        await sock.sendMessage(chatId, { text: weatherText });
+        // Process weather request
+        await processWeatherRequest(sock, chatId, message, query);
         
     } catch (error) {
-        console.error('Error fetching weather:', error);
-        
-        let errorMessage = '❌ Unable to retrieve weather information.';
-        if (error.response) {
-            if (error.response.status === 404) {
-                errorMessage = '❌ City not found. Please check the spelling.';
-            } else if (error.response.status === 401) {
-                errorMessage = '❌ Weather service configuration error.';
-            } else if (error.response.status === 429) {
-                errorMessage = '❌ Too many requests. Please try again later.';
-            }
-        } else if (error.code === 'ENOTFOUND') {
-            errorMessage = '❌ Network error. Please check your internet connection.';
-        }
-        
-        await sock.sendMessage(chatId, { text: errorMessage });
+        console.error('Weather Command Error:', error);
+        await sendErrorMessage(sock, chatId, message);
     }
-};
+}
+
+/**
+ * Extract text from message object
+ */
+function extractMessageText(message) {
+    return message.message?.conversation || 
+           message.message?.extendedTextMessage?.text ||
+           message.text;
+}
+
+/**
+ * Parse command and query from text
+ */
+function parseCommand(text) {
+    const parts = text.split(' ');
+    const command = parts[0].toLowerCase();
+    const query = parts.slice(1).join(' ').trim();
+    
+    return { command, query };
+}
+
+/**
+ * Send initial prompt message
+ */
+async function sendPromptMessage(sock, chatId, message) {
+    const promptText = "Please provide a city name after .weather or .cuaca\n\n" +
+                      "Example: .weather Nairobi";
+    
+    return await sock.sendMessage(chatId, { text: promptText }, { quoted: message });
+}
+
+/**
+ * Send empty query message
+ */
+async function sendEmptyQueryMessage(sock, chatId, message) {
+    return await sock.sendMessage(chatId, { 
+        text: "⚠️ Please provide a city name!\nExample: .weather Nairobi" 
+    }, { quoted: message });
+}
+
+/**
+ * Send error message
+ */
+async function sendErrorMessage(sock, chatId, message) {
+    return await sock.sendMessage(chatId, {
+        text: "❌ An error occurred. Please try again later.",
+        contextInfo: {
+            mentionedJid: [message.key.participant || message.key.remoteJid],
+            quotedMessage: message.message
+        }
+    }, { quoted: message });
+}
+
+/**
+ * Process weather request
+ */
+async function processWeatherRequest(sock, chatId, message, cityQuery) {
+    // Show processing indicator
+    await sock.sendMessage(chatId, {
+        react: { text: '🌤️', key: message.key }
+    });
+
+    try {
+        await handleWeatherAPIRequest(sock, chatId, message, cityQuery);
+    } catch (error) {
+        console.error('API Processing Error:', error);
+        await sendAPIErrorMessage(sock, chatId, message, error);
+    }
+}
+
+/**
+ * Handle weather API request
+ */
+async function handleWeatherAPIRequest(sock, chatId, message, cityQuery) {
+    const apiUrl = `https://rijalganzz.web.id/tools/cuaca?kota=${encodeURIComponent(cityQuery)}`;
+    
+    const response = await axios.get(apiUrl);
+    const data = response.data;
+
+    if (!data || data.status !== 200) {
+        throw new Error('Failed to fetch weather data');
+    }
+
+    const result = data.result;
+    
+    // Format weather message
+    const weatherMsg = formatWeatherMessage(result);
+    
+    await sock.sendMessage(chatId, {
+        text: weatherMsg
+    }, { quoted: message });
+}
+
+/**
+ * Format weather message from API result
+ */
+function formatWeatherMessage(result) {
+    return `
+🌤️ *Weather in ${result.city || "Unknown"}, ${result.country || "Unknown"}*
+
+📌 Condition: ${result.condition || "-"}
+🌡️ Temperature: ${result.temperature || "-"}
+💧 Humidity: ${result.humidity || "-"}
+💨 Wind: ${result.wind || "-"}
+🧭 Pressure: ${result.pressure || "-"}
+☀️ UV Index: ${result.uv_index || "-"}
+
+🕒 Observation Time: ${result.observation_time || "-"}
+📍 Region: ${result.region || "-"}
+🗺️ Coordinates: ${result.latitude || "-"}, ${result.longitude || "-"}
+    `.trim();
+}
+
+/**
+ * Send API error message
+ */
+async function sendAPIErrorMessage(sock, chatId, message, error) {
+    const errorMessage = "❌ Failed to fetch weather data, please try another city.";
+    
+    await sock.sendMessage(chatId, {
+        text: errorMessage,
+        contextInfo: {
+            mentionedJid: [message.key.participant || message.key.remoteJid],
+            quotedMessage: message.message
+        }
+    }, { quoted: message });
+}
+
+module.exports = { weatherCommand };
