@@ -1,72 +1,63 @@
-const fetch = require("node-fetch");
-
 async function gitcloneCommand(sock, chatId, message) {
+    const text = message.message?.conversation || message.message?.extendedTextMessage?.text;
+    const parts = text.split(' ');
+    const query = parts.slice(1).join(' ').trim();
+
+    if (!query) {
+        await sock.sendMessage(chatId, {
+            text: "*❌ Please provide a Git repository URL.*\n\n_Usage:_\n.gitclone https://github.com/user/repo.git"
+        }, { quoted: message });
+        return;
+    }
+
+    const { exec } = require("child_process");
+    const path = require("path");
+    const fs = require("fs");
+
     try {
-        // React to show processing
-        await sock.sendMessage(chatId, { react: { text: '📦', key: message.key } });
-
-        // Extract URL
-        const text = message.message?.conversation || message.message?.extendedTextMessage?.text || "";
-        const url = text.split(" ")[1];
-
-        if (!url) {
-            return sock.sendMessage(chatId, {
-                text: "📦 *Usage:* .gitclone <github-url>\n\nExample:\n.gitclone https://github.com/username/repo"
+        const repoUrl = query.trim();
+        const repoNameMatch = repoUrl.match(/\/([^\/]+)\.git$/);
+        
+        if (!repoNameMatch) {
+            await sock.sendMessage(chatId, {
+                text: "❌ Invalid Git repository URL."
             }, { quoted: message });
+            return;
         }
 
-        // Validate GitHub URL
-        const match = url.match(/github\.com\/([^\/]+)\/([^\/]+)(\.git)?/i);
-        if (!match) {
-            return sock.sendMessage(chatId, {
-                text: "❌ Invalid GitHub URL!\n\nExample: https://github.com/username/repo"
-            }, { quoted: message });
+        const repoName = repoNameMatch[1];
+        const targetPath = path.resolve(__dirname, "../repos", repoName);
+
+        await sock.sendMessage(chatId, {
+            text: `⏳ Cloning repository: ${repoUrl}`
+        }, { quoted: message });
+
+        if (!fs.existsSync(path.dirname(targetPath))) {
+            fs.mkdirSync(path.dirname(targetPath), { recursive: true });
         }
 
-        const user = match[1];
-        const repo = match[2].replace(/\.git$/, "");
-        const apiUrl = `https://api.github.com/repos/${user}/${repo}/zipball`;
+        exec(`git clone ${repoUrl} "${targetPath}"`, async (error, stdout, stderr) => {
+            if (error) {
+                console.error("Git clone error:", error);
+                await sock.sendMessage(chatId, {
+                    text: `❌ Failed to clone repository:\n${error.message}`
+                }, { quoted: message });
+                return;
+            }
 
-        await sock.sendMessage(chatId, {
-            text: `⏳ Downloading *${repo}* by *${user}*...`
-        }, { quoted: message });
+            let messageText = `✅ Successfully cloned repository: ${repoName}\n\n`;
+            if (stdout) messageText += `📄 Output:\n${stdout}`;
+            if (stderr) messageText += `\n⚠ Warnings/Errors:\n${stderr}`;
 
-        // Fetch ZIP
-        const response = await fetch(apiUrl, { headers: { 'User-Agent': 'WhatsApp-Bot' } });
-        if (!response.ok) throw new Error(`Download failed: ${response.status}`);
-
-        // Use response.buffer() instead of arrayBuffer
-        const buffer = await response.buffer();
-
-        // Debug scaffold
-        console.log({
-            repo,
-            user,
-            apiUrl,
-            status: response.status,
-            bufferSize: buffer.length
+            await sock.sendMessage(chatId, {
+                text: messageText
+            }, { quoted: message });
         });
 
-        if (buffer.length === 0) throw new Error("Empty ZIP buffer received!");
-
-        // Send file (Baileys v4+ prefers direct buffer)
+    } catch (error) {
+        console.error("Error in gitcloneCommand:", error);
         await sock.sendMessage(chatId, {
-            document: buffer,
-            mimetype: "application/zip",
-            fileName: `${repo}.zip`,
-            caption: `✅ *Repository cloned successfully!*\n👤 Author: ${user}\n📁 Repo: ${repo}\n🔗 ${url}`
-        }, { quoted: message });
-
-        // Success reaction
-        await sock.sendMessage(chatId, { react: { text: '✅', key: message.key } });
-
-    } catch (err) {
-        console.error("gitclone error:", err);
-        await sock.sendMessage(chatId, {
-            react: { text: '❌', key: message.key }
-        });
-        await sock.sendMessage(chatId, {
-            text: `❌ Error: ${err.message}`
+            text: "❌ Something went wrong while cloning the repository."
         }, { quoted: message });
     }
 }
