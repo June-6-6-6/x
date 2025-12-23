@@ -23,12 +23,14 @@ async function imageCommand(sock, chatId, message) {
         });
 
         try {
-            const apiUrl = `https://api.zenzxz.my.id/api/search/googleimage?query=${encodeURIComponent(query)}`;
+            // Using a more reliable API with better parameters
+            const apiUrl = `https://api.zenzxz.my.id/api/search/googleimage?query=${encodeURIComponent(query)}&limit=10`;
             
             const response = await axios.get(apiUrl, { 
                 timeout: 15000,
                 headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'application/json'
                 }
             });
 
@@ -40,38 +42,67 @@ async function imageCommand(sock, chatId, message) {
                 }, { quoted: message });
             }
 
-            // Loop through all images and send them one by one
-            for (const img of data.data) {
-                if (!img || !img.url) continue;
+            // Take only the first 8 images to ensure relevance
+            const imagesToSend = data.data.slice(0, 8);
+            let sentCount = 0;
+            let failedCount = 0;
+
+            // Send a batch message first
+            await sock.sendMessage(chatId, {
+                text: `📸 Found ${imagesToSend.length} images for *${query}*\nSending images...`
+            });
+
+            // Send images one by one with a delay to avoid rate limiting
+            for (const img of imagesToSend) {
+                if (!img || !img.url) {
+                    failedCount++;
+                    continue;
+                }
 
                 try {
+                    // Add a small delay between sends
+                    if (sentCount > 0) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+
+                    // Try to download and send as buffer first
                     const imageResponse = await axios.get(img.url, {
                         responseType: 'arraybuffer',
-                        timeout: 30000,
-                        maxContentLength: 10 * 1024 * 1024, // 10MB limit
+                        timeout: 10000,
+                        maxContentLength: 5 * 1024 * 1024, // 5MB limit
                         headers: {
                             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-                            'Accept': 'image/webp,image/*,*/*;q=0.9',
+                            'Accept': 'image/*',
                             'Referer': 'https://www.google.com/'
                         }
                     });
 
                     const imageBuffer = Buffer.from(imageResponse.data);
 
-                    if (imageBuffer.length > 0) {
+                    if (imageBuffer.length > 1000) { // Ensure it's a valid image (>1KB)
                         await sock.sendMessage(chatId, {
                             image: imageBuffer,
-                            caption: `📸 Result for: *${query}*`
-                        }, { quoted: message });
+                            caption: `📷 ${sentCount + 1}/8 - ${query}`
+                        });
+                        sentCount++;
+                    } else {
+                        failedCount++;
                     }
                 } catch (downloadError) {
-                    console.error("Buffer download failed, using URL method:", downloadError.message);
-
-                    await sock.sendMessage(chatId, {
-                        image: { url: img.url },
-                        caption: `📸 Result for: *${query}*`
-                    }, { quoted: message });
+                    console.error(`Failed to download image ${sentCount + 1}:`, downloadError.message);
+                    failedCount++;
                 }
+            }
+
+            // Send summary
+            await sock.sendMessage(chatId, {
+                text: `✅ Successfully sent ${sentCount} images for *${query}*\n${failedCount > 0 ? `(${failedCount} failed to load)` : ''}`
+            });
+
+            if (sentCount === 0) {
+                await sock.sendMessage(chatId, { 
+                    text: "❌ Failed to load any images. The image URLs might be invalid or blocked."
+                });
             }
 
         } catch (error) {
@@ -85,13 +116,13 @@ async function imageCommand(sock, chatId, message) {
                 await sock.sendMessage(chatId, { 
                     text: "❌ Image search API not found."
                 }, { quoted: message });
-            } else if (error.response?.status === 403) {
+            } else if (error.response?.status === 429) {
                 await sock.sendMessage(chatId, { 
-                    text: "❌ Access forbidden. The API might be blocking the request."
+                    text: "❌ Too many requests. Please wait a moment before trying again."
                 }, { quoted: message });
             } else {
                 await sock.sendMessage(chatId, { 
-                    text: "❌ Failed to fetch images. Try again later."
+                    text: `❌ Failed to fetch images: ${error.message || 'Unknown error'}`
                 }, { quoted: message });
             }
         }
