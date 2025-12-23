@@ -2,76 +2,63 @@ const axios = require('axios');
 
 async function imageCommand(sock, chatId, message) {
     try {
-        const pushname = message.pushName || "User";
-
-        // Extract text from message
-        const text = message.message?.conversation?.trim() || 
-                     message.message?.extendedTextMessage?.text?.trim() || '';
+        const rawText = message.message?.conversation?.trim() ||
+            message.message?.extendedTextMessage?.text?.trim() ||
+            message.message?.imageMessage?.caption?.trim() ||
+            message.message?.videoMessage?.caption?.trim() ||
+            '';
         
-        const args = text.split(' ');
-        const command = args[0].toLowerCase();
-        const query = args.slice(1).join(' ');
-
+        const used = (rawText || '').split(/\s+/)[0] || '.image';
+        const query = rawText.slice(used.length).trim();
+        
         if (!query) {
             await sock.sendMessage(chatId, { 
-                text: '⚠️ Please provide a search query!\n\nExample: .image cute cats' 
-            });
+                text: 'Usage: .image <search query>\n\nExample: .image cute cats\nExample: .image sunset landscape' 
+            }, { quoted: message });
             return;
         }
 
+        // Send searching reaction
         await sock.sendMessage(chatId, {
-            text: `🔍 Searching for images of *${query}*...`
+            react: { text: '🔍', key: message.key }
         });
 
-        // Call API
-        const apiUrl = `https://api.zenzxz.my.id/api/search/googleimage?query=${encodeURIComponent(query)}&limit=12`;
-        const response = await axios.get(apiUrl, { timeout: 20000 });
-        const data = response.data;
+        // Fetch images from API
+        const apiUrl = `https://api.zenzxz.my.id/api/search/googleimage?query=${encodeURIComponent(query)}`;
+        const { data } = await axios.get(apiUrl, { 
+            timeout: 15000, 
+            headers: { 
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            } 
+        });
 
-        if (!data || !data.data || data.data.length === 0) {
-            return await sock.sendMessage(chatId, { 
-                text: "❌ No images found for your query."
+        if (!data?.data || data.data.length === 0) {
+            await sock.sendMessage(chatId, { 
+                text: '❌ No images found for this query.\n\nTry a different search term.' 
             }, { quoted: message });
+            return;
         }
 
-        // Take first 6–8 images
-        const imagesToSend = data.data.slice(0, 6);
-
+        // Pick a random image from results
+        const randomIndex = Math.floor(Math.random() * data.data.length);
+        const imageResult = data.data[randomIndex];
+        
+        // Send image with caption
         await sock.sendMessage(chatId, {
-            text: `📦 Found ${imagesToSend.length} images\n⏳ Sending now...` 
-        });
+            image: { url: imageResult.url },
+            caption: `📸 Result for: *${query}*\n\n🔗 Source: ${imageResult.url}`
+        }, { quoted: message });
 
-        let successCount = 0;
-        let failedCount = 0;
-
-        for (let i = 0; i < imagesToSend.length; i++) {
-            const img = imagesToSend[i];
-            if (!img || !img.url) {
-                failedCount++;
-                continue;
-            }
-
-            try {
-                await sock.sendMessage(chatId, {
-                    image: { url: img.url },
-                    caption: `📷 ${i + 1}/${imagesToSend.length} - ${query}`
-                });
-                successCount++;
-            } catch (err) {
-                console.error(`Failed to send image ${i + 1}:`, err.message);
-                failedCount++;
-            }
-        }
-
-        // Completion message
-        await sock.sendMessage(chatId, { 
-            text: `✅ Sent ${successCount}/${imagesToSend.length} images for *${query}*${failedCount > 0 ? `\n❌ ${failedCount} failed` : ''}` 
+        // Success reaction
+        await sock.sendMessage(chatId, {
+            react: { text: '✅', key: message.key }
         });
 
     } catch (error) {
-        console.error("Image Command Error:", error);
+        console.error('[IMAGE] error:', error?.message || error);
+        const errorMsg = error?.response?.data?.message || error?.message || 'Unknown error';
         await sock.sendMessage(chatId, { 
-            text: "❌ An unexpected error occurred.\n\nError details: " + error.message 
+            text: `❌ Failed to fetch images.\nError: ${errorMsg}\n\nTry again later or check your connection.` 
         }, { quoted: message });
     }
 }
