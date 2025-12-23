@@ -10,30 +10,8 @@ async function imageCommand(sock, chatId, message) {
             });
         }
 
-        // Extract the query by removing the command prefix
-        let query;
-        const textLower = text.toLowerCase();
-        
-        // Check for different command prefixes
-        if (textLower.startsWith('image ')) {
-            query = text.substring(6).trim(); // Remove "image " (6 characters)
-        } else if (textLower.startsWith('img ')) {
-            query = text.substring(4).trim(); // Remove "img " (4 characters)
-        } else if (textLower.startsWith('/image ')) {
-            query = text.substring(7).trim(); // Remove "/image " (7 characters)
-        } else if (textLower.startsWith('/img ')) {
-            query = text.substring(5).trim(); // Remove "/img " (5 characters)
-        } else if (textLower.startsWith('!image ')) {
-            query = text.substring(7).trim(); // Remove "!image " (7 characters)
-        } else if (textLower.startsWith('!img ')) {
-            query = text.substring(5).trim(); // Remove "!img " (5 characters)
-        } else {
-            // If no command prefix found, assume the whole text is the query
-            query = text.trim();
-        }
-        
-        // Alternative: Use regex to remove common command prefixes
-        // query = text.replace(/^\/(img|image)\s+|^!(img|image)\s+|^(img|image)\s+/i, '').trim();
+        // Extract the query by removing command prefix
+        const query = text.replace(/^\/(img|image)\s+|^!(img|image)\s+|^(img|image)\s+/i, '').trim();
         
         if (!query) {
             return await sock.sendMessage(chatId, { 
@@ -42,14 +20,14 @@ async function imageCommand(sock, chatId, message) {
         }
 
         await sock.sendMessage(chatId, {
-            text: `🔍 Searching images for: *${query}*`
+            text: `🔍 Searching images for: *${query}*\n📸 Preparing 8 images...`
         });
 
         try {
             const apiUrl = `https://api.zenzxz.my.id/api/search/googleimage?query=${encodeURIComponent(query)}`;
             
             const response = await axios.get(apiUrl, { 
-                timeout: 15000,
+                timeout: 20000,
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
                 }
@@ -63,71 +41,73 @@ async function imageCommand(sock, chatId, message) {
                 }, { quoted: message });
             }
 
-            // Pick a random image from the results
-            const randomIndex = Math.floor(Math.random() * data.data.length);
-            const img = data.data[randomIndex];
+            // Get up to 8 unique images
+            const maxImages = Math.min(8, data.data.length);
+            const selectedImages = [];
+            
+            // Shuffle the array and pick first 8
+            const shuffled = [...data.data].sort(() => Math.random() - 0.5);
+            for (let i = 0; i < maxImages; i++) {
+                if (shuffled[i] && shuffled[i].url) {
+                    selectedImages.push(shuffled[i]);
+                }
+            }
 
-            if (!img || !img.url) {
+            if (selectedImages.length === 0) {
                 return await sock.sendMessage(chatId, { 
-                    text: "❌ No valid image URL found."
+                    text: `❌ No valid images found for: *${query}*`
                 }, { quoted: message });
             }
 
-            try {
-                const imageResponse = await axios.get(img.url, {
-                    responseType: 'arraybuffer',
-                    timeout: 30000,
-                    maxContentLength: 10 * 1024 * 1024, // 10MB limit for images
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                        'Accept': 'image/webp,image/*,*/*;q=0.9',
-                        'Accept-Language': 'en-US,en;q=0.9',
-                        'Accept-Encoding': 'gzip, deflate, br',
-                        'Connection': 'keep-alive',
-                        'Referer': 'https://www.google.com/'
+            // Prepare media array for sending multiple images
+            const mediaMessages = selectedImages.map((img, index) => ({
+                image: { url: img.url },
+                caption: `📸 ${index + 1}/${selectedImages.length}: *${query}*`
+            }));
+
+            // Send images in batches to avoid flooding
+            let sentCount = 0;
+            const batchSize = 2; // Send 2 images at a time
+            
+            for (let i = 0; i < mediaMessages.length; i += batchSize) {
+                const batch = mediaMessages.slice(i, i + batchSize);
+                
+                for (const media of batch) {
+                    try {
+                        await sock.sendMessage(chatId, media);
+                        sentCount++;
+                    } catch (err) {
+                        console.error(`Failed to send image ${sentCount + 1}:`, err.message);
                     }
-                });
-                
-                const imageBuffer = Buffer.from(imageResponse.data);
-                
-                if (imageBuffer.length === 0) {
-                    throw new Error("Image buffer is empty");
                 }
                 
-                await sock.sendMessage(chatId, {
-                    image: imageBuffer,
-                    caption: `📸 Image search: *${query}*`
-                }, { quoted: message });
-
-            } catch (downloadError) {
-                console.error("Buffer download failed, trying URL method:", downloadError.message);
-                
-                await sock.sendMessage(chatId, {
-                    image: { url: img.url },
-                    caption: `📸 Image search: *${query}*`
-                }, { quoted: message });
+                // Wait between batches
+                if (i + batchSize < mediaMessages.length) {
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                }
             }
+
+            // Completion message
+            await sock.sendMessage(chatId, { 
+                text: `✅ Sent *${sentCount}/${selectedImages.length}* images for: *${query}*`
+            });
 
         } catch (error) {
             console.error("Image Search Error:", error);
             
+            let errorMessage = `❌ Failed to fetch images for: *${query}*. Try again later.`;
+            
             if (error.code === 'ECONNABORTED') {
-                await sock.sendMessage(chatId, { 
-                    text: `❌ Request timeout while searching for: *${query}*. Please try again.`
-                }, { quoted: message });
+                errorMessage = `❌ Request timeout while searching for: *${query}*.`;
             } else if (error.response?.status === 404) {
-                await sock.sendMessage(chatId, { 
-                    text: "❌ Image search API not found. The service might be temporarily unavailable."
-                }, { quoted: message });
+                errorMessage = "❌ Image search API not found.";
             } else if (error.response?.status === 403) {
-                await sock.sendMessage(chatId, { 
-                    text: "❌ Access forbidden. The image search API might be blocking the request."
-                }, { quoted: message });
-            } else {
-                await sock.sendMessage(chatId, { 
-                    text: `❌ Failed to fetch images for: *${query}*. Try again later.`
-                }, { quoted: message });
+                errorMessage = "❌ Access forbidden by image search API.";
             }
+            
+            await sock.sendMessage(chatId, { 
+                text: errorMessage
+            }, { quoted: message });
         }
     } catch (error) {
         console.error('Error in Image command:', error);
