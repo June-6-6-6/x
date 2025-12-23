@@ -1,81 +1,73 @@
 const fs = require('fs');
 const path = require('path');
 const { channelInfo } = require('../lib/messageConfig');
+const { isSudo } = require('../lib/index');
 
-async function unbanCommand(sock, chatId, message, msg, ownerNumber) {
-    // Check if sender is owner
-    const sender = msg.key.participant || msg.key.remoteJid;
-    if (sender !== ownerNumber && !sender.includes(ownerNumber)) {
-        await sock.sendMessage(chatId, { 
-            text: '❌ This command is for owner only!',
-            ...channelInfo 
-        });
+async function unbanCommand(sock, chatId, message) {
+    // Only bot owner/sudo can use this command
+    const senderId = message.key.participant || message.key.remoteJid;
+    const senderIsSudo = await isSudo(senderId);
+    
+    if (!message.key.fromMe && !senderIsSudo) {
         return;
     }
 
     let userToUnban;
-    let userToUnbanJid;
     
     // Check for mentioned users
     if (message.message?.extendedTextMessage?.contextInfo?.mentionedJid?.length > 0) {
-        userToUnbanJid = message.message.extendedTextMessage.contextInfo.mentionedJid[0];
-        userToUnban = userToUnbanJid.split('@')[0];
+        userToUnban = message.message.extendedTextMessage.contextInfo.mentionedJid[0];
     }
     // Check for replied message
     else if (message.message?.extendedTextMessage?.contextInfo?.participant) {
-        userToUnbanJid = message.message.extendedTextMessage.contextInfo.participant;
-        userToUnban = userToUnbanJid.split('@')[0];
+        userToUnban = message.message.extendedTextMessage.contextInfo.participant;
     }
-    // Check if user JID is provided in message text
-    else if (msg.message?.conversation || msg.message?.extendedTextMessage?.text) {
-        const text = msg.message.conversation || msg.message.extendedTextMessage.text;
-        const args = text.split(' ');
-        if (args[1] && args[1].includes('@')) {
-            userToUnbanJid = args[1].includes('.net') ? args[1] : args[1] + '@s.whatsapp.net';
-            userToUnban = userToUnbanJid.split('@')[0];
+    // Check if user ID is provided as argument
+    else {
+        const text = message.message?.conversation || message.message?.extendedTextMessage?.text || '';
+        const args = text.split(' ').slice(1);
+        if (args.length > 0) {
+            // Try to extract JID from argument
+            const possibleJid = args[0];
+            if (possibleJid.includes('@')) {
+                userToUnban = possibleJid;
+            } else {
+                // Assume it's a phone number, add @s.whatsapp.net
+                userToUnban = possibleJid.replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+            }
         }
     }
     
-    if (!userToUnbanJid) {
+    if (!userToUnban) {
         await sock.sendMessage(chatId, { 
-            text: '⚠️ Please mention the user or reply to their message to unban!\n\nUsage: *!unban @user* or reply to user\'s message with *!unban*', 
+            text: 'Please mention the user, reply to their message, or provide their JID/phone number!\nExample: .unban @user or .unban 6281234567890', 
             ...channelInfo 
-        });
+        }, { quoted: message });
         return;
     }
 
     try {
-        // Ensure banned.json file exists
-        const bannedFile = './data/banned.json';
-        if (!fs.existsSync(bannedFile)) {
-            fs.writeFileSync(bannedFile, JSON.stringify([]));
-        }
-        
-        const bannedUsers = JSON.parse(fs.readFileSync(bannedFile));
-        const index = bannedUsers.indexOf(userToUnbanJid);
-        
+        const bannedUsers = JSON.parse(fs.readFileSync('./data/banned.json'));
+        const index = bannedUsers.indexOf(userToUnban);
         if (index > -1) {
             bannedUsers.splice(index, 1);
-            fs.writeFileSync(bannedFile, JSON.stringify(bannedUsers, null, 2));
+            fs.writeFileSync('./data/banned.json', JSON.stringify(bannedUsers, null, 2));
             
             await sock.sendMessage(chatId, { 
-                text: `✅ Successfully unbanned @${userToUnban}!`,
-                mentions: [userToUnbanJid],
+                text: `✅ Successfully unbanned ${userToUnban.split('@')[0]}!`,
+                mentions: [userToUnban],
                 ...channelInfo 
             });
         } else {
             await sock.sendMessage(chatId, { 
-                text: `ℹ️ @${userToUnban} is not in the banned list!`,
-                mentions: [userToUnbanJid],
+                text: `❌ ${userToUnban.split('@')[0]} is not banned!`,
+                mentions: [userToUnban],
                 ...channelInfo 
             });
         }
     } catch (error) {
         console.error('Error in unban command:', error);
-        await sock.sendMessage(chatId, { 
-            text: '❌ Failed to unban user!', 
-            ...channelInfo 
-        });
+        await sock.sendMessage(chatId, { text: '❌ Failed to unban user!', ...channelInfo }, { quoted: message });
     }
 }
 
