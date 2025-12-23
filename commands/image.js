@@ -32,7 +32,7 @@ async function imageCommand(sock, chatId, senderId, message, userMessage) {
             }
         );
 
-        const images = response.data?.data || [];
+        const images = response.data.data;
         
         if (!images.length) {
             return await sock.sendMessage(chatId, {
@@ -42,11 +42,11 @@ async function imageCommand(sock, chatId, senderId, message, userMessage) {
 
         // Pick random image
         const img = images[Math.floor(Math.random() * images.length)];
-        const imageUrl = img.url || img;
+        //const imageUrl = img;
 
         if (imageUrl) {
             await sock.sendMessage(chatId, {
-                image: { url: imageUrl },
+                image: { url: img },
                 caption: `📸 Result for: *${query}*`
             });
         }
