@@ -267,6 +267,7 @@ const { blockCommand, unblockCommand, blocklistCommand } = require('./commands/b
 const ytsCommand = require('./commands/yts');
 const setGroupStatusCommand = require('./commands/setGroupStatus');
 const handleDevReact = require('./commands/devReact');
+const imageCommand = require('./commands/image');
 /*━━━━━━━━━━━━━━━━━━━━*/
 // Global settings
 /*━━━━━━━━━━━━━━━━━━━━*/
@@ -955,6 +956,10 @@ const fake = createFakeContact(message);
 
             case userMessage === `${prefix}dare`:
                 await dareCommand(sock, chatId, message);
+                break;
+
+            case userMessage === `${prefix}img`:
+                await imageCommand(sock, chatId, message);
                 break;
 
             case userMessage === `${prefix}truth`:
