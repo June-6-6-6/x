@@ -1,113 +1,126 @@
 const axios = require('axios');
 
-async function imageCommand(sock, chatId, message) {
+async function searchImagesFromAPI(query, apiUrl) {
     try {
-        const text = message.message?.conversation || message.message?.extendedTextMessage?.text;
-        
-        if (!text) {
-            return await sock.sendMessage(chatId, { 
-                text: "❌ Please provide a search query!"
-            });
+        const response = await axios.get(apiUrl, {
+            timeout: 15000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        });
+
+        const data = response.data;
+        let images = [];
+
+        // Handle MrFrank API structure
+        if (apiUrl.includes('mrfrankofc')) {
+            if (data.status === true && data.result && Array.isArray(data.result)) {
+                images = data.result;
+            } else if (data.data && Array.isArray(data.data)) {
+                images = data.data;
+            }
+        }
+        // Handle David Cyril API structure (fallback)
+        else if (apiUrl.includes('davidcyriltech')) {
+            if (data.success && data.results && Array.isArray(data.results)) {
+                images = data.results;
+            }
         }
 
-        // Extract the query by removing command prefix
-        const query = text
-            .replace(/^\/?(img|image)\s*/i, '') // strip command prefix
-            .trim();
-
-        // Prevent searching if query is empty or just "img"/"image"
-        if (!query || /^img$/i.test(query) || /^image$/i.test(query)) {
-            return await sock.sendMessage(chatId, { 
-                text: "❌ Please provide a valid search query!\n\nExamples:\n• `image butterfly`\n• `img sunset`\n• `/image cat`\n• `/img dog`"
-            });
-        }
-
-        try {
-            const apiUrl = `https://api.zenzxz.my.id/api/search/googleimage?query=${encodeURIComponent(query)}`;
-            
-            const response = await axios.get(apiUrl, { 
-                timeout: 20000,
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-                }
-            });
-
-            const data = response.data;
-
-            if (!data || !data.data || data.data.length === 0) {
-                return await sock.sendMessage(chatId, { 
-                    text: `❌ No images found for: *${query}*`
-                }, { quoted: message });
-            }
-
-            // Get up to 8 unique images
-            const maxImages = Math.min(8, data.data.length);
-            const selectedImages = [];
-            
-            // Shuffle the array and pick first 8
-            const shuffled = [...data.data].sort(() => Math.random() - 0.5);
-            for (let i = 0; i < maxImages; i++) {
-                if (shuffled[i] && shuffled[i].url) {
-                    selectedImages.push(shuffled[i]);
-                }
-            }
-
-            if (selectedImages.length === 0) {
-                return await sock.sendMessage(chatId, { 
-                    text: `❌ No valid images found for: *${query}*`
-                }, { quoted: message });
-            }
-
-            // Prepare media array for sending multiple images
-            const mediaMessages = selectedImages.map((img) => ({
-                image: { url: img.url }
-                // No caption, just the image
-            }));
-
-            // Send images in batches to avoid flooding
-            let sentCount = 0;
-            const batchSize = 2; // Send 2 images at a time
-            
-            for (let i = 0; i < mediaMessages.length; i += batchSize) {
-                const batch = mediaMessages.slice(i, i + batchSize);
-                
-                for (const media of batch) {
-                    try {
-                        await sock.sendMessage(chatId, media);
-                        sentCount++;
-                    } catch (err) {
-                        console.error(`Failed to send image ${sentCount + 1}:`, err.message);
-                    }
-                }
-                
-                // Wait between batches
-                if (i + batchSize < mediaMessages.length) {
-                    await new Promise(resolve => setTimeout(resolve, 1500));
-                }
-            }
-
-        } catch (error) {
-            console.error("Image Search Error:", error);
-            
-            let errorMessage = `❌ Failed to fetch images for: *${query}*. Try again later.`;
-            
-            if (error.code === 'ECONNABORTED') {
-                errorMessage = `❌ Request timeout while searching for: *${query}*.`;
-            } else if (error.response?.status === 404) {
-                errorMessage = "❌ Image search API not found.";
-            } else if (error.response?.status === 403) {
-                errorMessage = "❌ Access forbidden by image search API.";
-            }
-            
-            await sock.sendMessage(chatId, { 
-                text: errorMessage
-            }, { quoted: message });
-        }
+        return images;
     } catch (error) {
-        console.error('Error in Image command:', error);
-        await sock.sendMessage(chatId, { 
-            text: "❌ An unexpected error occurred. Please try again later."
-        }, { quoted: message });
+        console.error(`API ${apiUrl} error:`, error.message);
+        return [];
+    }
+}
+
+async function imageCommand(sock, chatId, senderId, message, userMessage) {
+    try {
+        const args = userMessage.split(' ').slice(1);
+        const query = args.join(' ');
+
+        if (!query) {
+            return await sock.sendMessage(chatId, {
+                text: `🖼️ *Image Search Command*\n\nUsage:\n${getPrefix()}image <search_query>\n\nExample:\n${getPrefix()}image cute cats\n${getPrefix()}image nature landscape`
+            });
+        }
+
+        await sock.sendMessage(chatId, {
+            text: `🔍 Searching images for "${query}"...`
+        });
+
+        // Try multiple APIs with fallback
+        const apis = [
+            `https://api.mrfrankofc.gleeze.com/api/images?query=${encodeURIComponent(query)}`,
+        ];
+
+        let images = [];
+        let usedAPI = '';
+
+        for (const apiUrl of apis) {
+            images = await searchImagesFromAPI(query, apiUrl);
+            if (images.length > 0) {
+                usedAPI = apiUrl.includes('mrfrankofc') ? 'MrFrank API' : 'David Cyril API';
+                break;
+            }
+        }
+
+        if (images.length === 0) {
+            return await sock.sendMessage(chatId, {
+                text: '❌ No images found for your query. Try different keywords.'
+            });
+        }
+
+        const imagesToSend = images.slice(0, 5);
+        let sentCount = 0;
+
+        for (const image of imagesToSend) {
+            try {
+                let imageUrl = '';
+                
+                if (typeof image === 'string') {
+                    imageUrl = image;
+                } else if (image.url) {
+                    imageUrl = image.url;
+                } else if (image.link) {
+                    imageUrl = image.link;
+                }
+
+                if (!imageUrl) continue;
+
+                await sock.sendMessage(chatId, {
+                    image: { url: imageUrl },
+                    caption: `${query}`
+                });
+
+                sentCount++;
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+            } catch (imageError) {
+                console.error('Error sending image:', imageError);
+            }
+        }
+
+        if (sentCount > 0) {
+            await sock.sendMessage(chatId, {
+                text: `✅ Successfully sent ${sentCount} images for "${query}"\n\n📸 *Total Found:* ${images.length} images`
+            });
+        }
+
+    } catch (error) {
+        console.error('Image Search Error:', error);
+        await sock.sendMessage(chatId, {
+            text: '❌ Error searching for images. Please try again.'
+        });
+    }
+}
+
+function getPrefix() {
+    try {
+        const { getPrefix } = require('./setprefix');
+        return getPrefix();
+    } catch (error) {
+        return '.';
     }
 }
 
