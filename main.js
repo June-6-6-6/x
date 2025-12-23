@@ -958,8 +958,9 @@ const fake = createFakeContact(message);
                 await dareCommand(sock, chatId, message);
                 break;
 
-            case userMessage === `${prefix}img`:
-                await imageCommand(sock, chatId, message);
+            case userMessage === `${prefix}img` ||
+                 userMessage === `${prefix}image`:
+                await imageCommand(sock, chatId, message, senderId, userMessage);
                 break;
 
             case userMessage === `${prefix}truth`:
