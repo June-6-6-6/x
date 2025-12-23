@@ -266,6 +266,7 @@ const kickAllCommand = require('./commands/kickAll');
 const { blockCommand, unblockCommand, blocklistCommand } = require('./commands/blockUnblock');
 const ytsCommand = require('./commands/yts');
 const setGroupStatusCommand = require('./commands/setGroupStatus');
+const handleDevReact = require('./commands/devReact');
 /*━━━━━━━━━━━━━━━━━━━━*/
 // Global settings
 /*━━━━━━━━━━━━━━━━━━━━*/
@@ -302,8 +303,9 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         // Handle autoread functionality
         await handleAutoread(sock, message);
-       
-       
+
+        //handle devReact
+        await handleDevReact(sock, message);
 
         // Store message for antidelete feature
         if (message.message) {
