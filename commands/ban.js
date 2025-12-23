@@ -1,30 +1,17 @@
 const fs = require('fs');
 const { channelInfo } = require('../lib/messageConfig');
 const isAdmin = require('../lib/isAdmin');
-const { isSudo } = require('../lib/index');
 
 async function banCommand(sock, chatId, message) {
-    // Restrict in groups to admins; in private to owner/sudo
-    const isGroup = chatId.endsWith('@g.us');
-    if (isGroup) {
-        const senderId = message.key.participant || message.key.remoteJid;
-        const { isSenderAdmin, isBotAdmin } = await isAdmin(sock, chatId, senderId);
-        if (!isBotAdmin) {
-            await sock.sendMessage(chatId, { text: 'Please make the bot an admin to use .ban', ...channelInfo }, { quoted: message });
-            return;
-        }
-        if (!isSenderAdmin && !message.key.fromMe) {
-            await sock.sendMessage(chatId, { text: 'Only group admins can use .ban', ...channelInfo }, { quoted: message });
-            return;
-        }
-    } else {
-        const senderId = message.key.participant || message.key.remoteJid;
-        const senderIsSudo = await isSudo(senderId);
-        if (!message.key.fromMe && !senderIsSudo) {
-            await sock.sendMessage(chatId, { text: 'Only owner/sudo can use .ban in private chat', ...channelInfo }, { quoted: message });
-            return;
-        }
+    // Restrict to owner only (message.key.fromMe)
+    if (!message.key.fromMe) {
+        await sock.sendMessage(chatId, { 
+            text: 'This command is restricted to owner only!', 
+            ...channelInfo 
+        }, { quoted: message });
+        return;
     }
+
     let userToBan;
     
     // Check for mentioned users
@@ -40,7 +27,7 @@ async function banCommand(sock, chatId, message) {
         await sock.sendMessage(chatId, { 
             text: 'Please mention the user or reply to their message to ban!', 
             ...channelInfo 
-        });
+        }, { quoted: message });
         return;
     }
 
@@ -64,17 +51,17 @@ async function banCommand(sock, chatId, message) {
                 text: `Successfully banned @${userToBan.split('@')[0]}!`,
                 mentions: [userToBan],
                 ...channelInfo 
-            });
+            }, { quoted: message });
         } else {
             await sock.sendMessage(chatId, { 
                 text: `${userToBan.split('@')[0]} is already banned!`,
                 mentions: [userToBan],
                 ...channelInfo 
-            });
+            }, { quoted: message });
         }
     } catch (error) {
         console.error('Error in ban command:', error);
-        await sock.sendMessage(chatId, { text: 'Failed to ban user!', ...channelInfo });
+        await sock.sendMessage(chatId, { text: 'Failed to ban user!', ...channelInfo }, { quoted: message });
     }
 }
 
