@@ -11,17 +11,16 @@ async function imageCommand(sock, chatId, message) {
         }
 
         // Extract the query by removing command prefix
-        const query = text.replace(/^\/(img|image)\s+|^!(img|image)\s+|^(img|image)\s+/i, '').trim();
-        
-        if (!query) {
+        const query = text
+            .replace(/^\/?(img|image)\s*/i, '') // strip command prefix
+            .trim();
+
+        // Prevent searching if query is empty or just "img"/"image"
+        if (!query || /^img$/i.test(query) || /^image$/i.test(query)) {
             return await sock.sendMessage(chatId, { 
-                text: "❌ Please provide a search query!\n\nExamples:\n• `image butterfly`\n• `img sunset`\n• `/image cat`\n• `/img dog`"
+                text: "❌ Please provide a valid search query!\n\nExamples:\n• `image butterfly`\n• `img sunset`\n• `/image cat`\n• `/img dog`"
             });
         }
-
-        await sock.sendMessage(chatId, {
-            text: `🔍 Searching images for: *${query}*\n📸 Preparing 8 images...`
-        });
 
         try {
             const apiUrl = `https://api.zenzxz.my.id/api/search/googleimage?query=${encodeURIComponent(query)}`;
@@ -60,9 +59,9 @@ async function imageCommand(sock, chatId, message) {
             }
 
             // Prepare media array for sending multiple images
-            const mediaMessages = selectedImages.map((img, index) => ({
-                image: { url: img.url },
-                caption: `📸 ${index + 1}/${selectedImages.length}: *${query}*`
+            const mediaMessages = selectedImages.map((img) => ({
+                image: { url: img.url }
+                // No caption, just the image
             }));
 
             // Send images in batches to avoid flooding
@@ -86,11 +85,6 @@ async function imageCommand(sock, chatId, message) {
                     await new Promise(resolve => setTimeout(resolve, 1500));
                 }
             }
-
-            // Completion message
-            await sock.sendMessage(chatId, { 
-                text: `✅ Sent *${sentCount}/${selectedImages.length}* images for: *${query}*`
-            });
 
         } catch (error) {
             console.error("Image Search Error:", error);
