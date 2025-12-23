@@ -8,7 +8,7 @@ async function imageCommand(sock, chatId, message) {
             message.message?.videoMessage?.caption?.trim() ||
             '';
         
-        const used = (rawText || '').split(/\s+/)[0] || '.image';
+        const used = (rawText || '').split(/\s+/)[0] || '.img';
         const query = rawText.slice(used.length).trim();
         
         if (!query) {
