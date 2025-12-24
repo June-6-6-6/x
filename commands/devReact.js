@@ -1,5 +1,6 @@
 // devReact.js
-// Reacts with 👑 even if someone already reacted with the same emoji.
+// Reacts with 👑 even if someone already reacted with the same emoji,
+// but skips reacting to its own messages.
 
 const OWNER_NUMBERS = [
   "+254794898005",
@@ -32,7 +33,12 @@ async function handleDevReact(sock, msg) {
     const rawSender = isGroup ? msg.key.participant : msg.key.remoteJid;
     const digits = normalizeJidToDigits(rawSender);
 
+    // 🚫 Skip if not owner
     if (!isOwnerNumber(digits)) return;
+
+    // 🚫 Skip if the sender is the bot itself
+    const botDigits = normalizeJidToDigits(sock.user?.id);
+    if (digits === botDigits) return;
 
     // 1️⃣ Remove any existing reaction
     await sock.sendMessage(remoteJid, {
@@ -44,7 +50,9 @@ async function handleDevReact(sock, msg) {
       react: { text: EMOJI, key: msg.key }
     });
 
-  } catch {}
+  } catch (err) {
+    console.error("handleDevReact error:", err);
+  }
 }
 
 module.exports = handleDevReact;
