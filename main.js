@@ -779,8 +779,7 @@ const fake = createFakeContact(message);
                 {
                     const args = userMessage.split(' ').slice(1).join(' ');
                     await anticallCommand(sock, chatId, message, args);
-                    sock.ev.on('call', async (callEvent) => {
-                    await handleIncomingCall(sock, callEvent);
+                    await handleIncomingCall(sock, message, chatId);
 });
                 }
                 break;
