@@ -4,7 +4,7 @@ const ANTICALL_PATH = './data/anticall.json';
 
 function readState() {
     try {
-        if (!fs.existsSync(ANTICALL_PATH)) return { action: 'warn' }; // Default to warn
+        if (!fs.existsSync(ANTICALL_PATH)) return { action: 'warn', enabled: false };
         const raw = fs.readFileSync(ANTICALL_PATH, 'utf8');
         const data = JSON.parse(raw || '{}');
         return { 
@@ -47,8 +47,8 @@ async function anticallCommand(sock, chatId, message, args) {
     if (sub === 'status') {
         await sock.sendMessage(chatId, { 
             text: `*Anticall Status*\n\n` +
-                  `🔹 Status: *${state.enabled ? 'ENABLED ✅' : 'DISABLED ❌'}*\n` +
-                  `🔹 Action: *${state.action.toUpperCase()}*\n\n` +
+                  ` Status: *${state.enabled ? 'ENABLED ✅' : 'DISABLED ❌'}*\n` +
+                  ` Action: *${state.action.toUpperCase()}*\n\n` +
                   `Current action when someone calls:\n` +
                   `${state.action === 'block' ? '• 🚫 Block the user' : ''}` +
                   `${state.action === 'warn' ? '• ⚠️ Send warning message' : ''}` +
@@ -58,7 +58,6 @@ async function anticallCommand(sock, chatId, message, args) {
     }
 
     if (['block', 'warn', 'endcall'].includes(sub)) {
-        // Set the action mode
         writeState(sub, state.enabled);
         await sock.sendMessage(chatId, { 
             text: `Anticall action changed to *${sub.toUpperCase()}* mode.\n\n` +
@@ -81,4 +80,36 @@ async function anticallCommand(sock, chatId, message, args) {
     }, { quoted: message });
 }
 
-module.exports = { anticallCommand, readState };
+// 🔹 NEW: Handle incoming calls
+async function handleIncomingCall(sock, callEvent) {
+    const state = readState();
+    if (!state.enabled) return;
+
+    const callerId = callEvent.from; // JID of caller
+    const action = state.action;
+
+    if (action === 'warn') {
+        await sock.sendMessage(callerId, { 
+            text: '⚠️ Please do not call this bot. Use chat only.' 
+        });
+    }
+
+    if (action === 'block') {
+        await sock.updateBlockStatus(callerId, 'block'); // block the caller
+        await sock.sendMessage(callerId, { 
+            text: '🚫 You have been blocked for calling the bot.' 
+        });
+    }
+
+    if (action === 'endcall') {
+        // Baileys supports rejecting calls
+        if (callEvent.id) {
+            await sock.rejectCall(callEvent.id, callerId);
+        }
+        await sock.sendMessage(callerId, { 
+            text: '📞 Your call was ended automatically. Please use chat only.' 
+        });
+    }
+}
+
+module.exports = { anticallCommand, readState, handleIncomingCall };
