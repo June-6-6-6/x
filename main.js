@@ -135,9 +135,7 @@ const {
 } = require('./commands/antidelete');
  
 const {
- anticallCommand,
- handleIncomingCall,
- readState
+ anticallCommand
 } = require('./commands/anticall');
  
 const {
