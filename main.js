@@ -137,7 +137,9 @@ const {
 const {
  anticallCommand,
  handleCallEvent,
- antiCallSettings
+ antiCallSettings,
+ readSetting,
+ updateSettings
 } = require('./commands/anticall');
  
 const {
