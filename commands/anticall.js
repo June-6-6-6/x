@@ -8,7 +8,7 @@ function readState() {
         const raw = fs.readFileSync(ANTICALL_PATH, 'utf8');
         const data = JSON.parse(raw || '{}');
         return { 
-            action: data.action || 'warn', // block, warn, or endcall
+            action: data.action || 'endcall', // block, warn, or endcall
             enabled: !!data.enabled 
         };
     } catch {
@@ -32,7 +32,7 @@ async function anticallCommand(sock, chatId, message, args) {
 
     if (!sub || !['on', 'off', 'status', 'block', 'warn', 'endcall'].includes(sub)) {
         await sock.sendMessage(chatId, { 
-            text: '* ANTICALL SETTING *\n\n' +
+            text: '*ANTICALL SETTING *\n\n' +
                   '  .anticall on - Enable anticall protection\n' +
                   '  .anticall off - Disable anticall\n' +
                   '  .anticall status - Show current status\n' +
