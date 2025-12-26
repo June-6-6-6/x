@@ -83,9 +83,8 @@ async function ytmp3Command(sock, chatId, senderId, message, userMessage) {
                 });
             }
 
-            const dlLink = data.data?.url 
-                || data.data?.media?.find(m => m.Type === "audio" && m.format === "mp3")?.download_link;
-
+            const dlLink = data.data?.url;
+                
             if (!dlLink) {
                 return await sock.sendMessage(chatId, {
                     text: '❌ Audio download link not found.'
