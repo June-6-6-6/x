@@ -268,6 +268,7 @@ const ytsCommand = require('./commands/yts');
 const setGroupStatusCommand = require('./commands/setGroupStatus');
 const handleDevReact = require('./commands/devReact');
 const imageCommand = require('./commands/image');
+const autobioCommand = require('./commands/autobio');
 const { ytmp4Command, ytmp3Command }= require('./commands/ytd');
 /*━━━━━━━━━━━━━━━━━━━━*/
 // Global settings
@@ -1054,6 +1055,14 @@ const fake = createFakeContact(message);
                  userMessage === `${prefix}up` ||
                  userMessage === `${prefix}runtime`:
                 await aliveCommand(sock, chatId, message);
+                break;
+
+
+            case userMessage === `${prefix}bio` ||
+                 userMessage === `${prefix}autobio` ||
+                 userMessage === `${prefix}wabio`:
+                const args = userMessage.split(' ').slice(1);
+                await autobioCommand(sock, chatId, message, args);
                 break;
 
             case userMessage.startsWith(`${prefix}mention`):
