@@ -1,174 +1,83 @@
 const fs = require("fs");
 const axios = require('axios');
-const yts = require('yt-search');
-const path = require('path');
-const fetch = require('node-fetch');
 
-async function ytmp4Command(sock, chatId, message) {
+// Helper to send usage message
+async function sendUsage(sock, chatId, type) {
+    const usage = type === "mp4"
+        ? `🎬 *YouTube MP4 Download Command*\n\nUsage:\n.ytmp4 <youtube_url>\n\nExample:\n.ytmp4 https://youtu.be/xxxx`
+        : `🎵 *YouTube MP3 Download Command*\n\nUsage:\n.ytmp3 <youtube_url>\n\nExample:\n.ytmp3 https://youtu.be/xxxx`;
+    await sock.sendMessage(chatId, { text: usage });
+}
+
+// Common starter (reaction + info)
+async function startDownload(sock, chatId, message, url, type) {
+    await sock.sendMessage(chatId, { react: { text: '🕖', key: message.key } });
+    await sock.sendMessage(chatId, { text: `⏬ Downloading ${type.toUpperCase()} from: ${url}...` }, { quoted: message });
+}
+
+// MP4 Command
+async function ytmp4Command(sock, chatId, senderId, message, userMessage) {
+    const url = userMessage.split(' ')[1];
+    if (!url) return sendUsage(sock, chatId, "mp4");
+
     try {
+        await startDownload(sock, chatId, message, url, "mp4");
+        const mp4dl = await ytmp4(url, { format: "mp4", videoQuality: "720" });
+
+        if (!mp4dl?.url) throw new Error("Invalid video response");
+
+        const videoBuffer = await (await fetch(mp4dl.url)).arrayBuffer();
         await sock.sendMessage(chatId, {
-            react: { text: '🕖', key: message.key }
-        });
-
-        const tempDir = path.join(__dirname, "temp");
-        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
-
-        const text = message.message?.conversation || message.message?.extendedTextMessage?.text;
-        const parts = text.split(' ');
-        const url = parts.slice(1).join(' ').trim();
-
-        if (!url) return await sock.sendMessage(chatId, { 
-            text: '🎬 *YouTube MP4 Download Command*\n\nUsage:\n.ytmp4 <youtube_url>\n\nExample:\n.ytmp4 https://youtu.be/xxxx\n.ytmp4 https://www.youtube.com/watch?v=xxxx'
-        }, { quoted: message });
-
-        await sock.sendMessage(chatId, {
-            text: `⏬ Downloading MP4 video from: ${url}...`
-        }, { quoted: message });
-
-        // Search YouTube if URL is a search query
-        let videoUrl = url;
-        if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
-            const searchResult = await (await yts(`${url} video`)).videos[0];
-            if (!searchResult) return sock.sendMessage(chatId, { 
-                text: "😕 Couldn't find that video. Try another one!"
-            }, { quoted: message });
-            videoUrl = searchResult.url;
-        }
-
-        const apiUrl = `https://api.privatezia.biz.id/api/downloader/ytmp4?url=${encodeURIComponent(videoUrl)}`;
-        const response = await axios.get(apiUrl);
-        const apiData = response.data;
-
-        if (!apiData.status || !apiData.result || !apiData.result.downloadUrl) {
-            throw new Error("API failed to fetch video!");
-        }
-
-        const timestamp = Date.now();
-        const fileName = `video_${timestamp}.mp4`;
-        const filePath = path.join(tempDir, fileName);
-
-        // Download MP4
-        const videoResponse = await axios({ 
-            method: "get", 
-            url: apiData.result.downloadUrl, 
-            responseType: "stream", 
-            timeout: 600000 
-        });
-        const writer = fs.createWriteStream(filePath);
-        videoResponse.data.pipe(writer);
-        await new Promise((resolve, reject) => { 
-            writer.on("finish", resolve); 
-            writer.on("error", reject); 
-        });
-
-        if (!fs.existsSync(filePath) || fs.statSync(filePath).size === 0) {
-            throw new Error("Download failed or empty file!");
-        }
-
-        await sock.sendMessage(chatId, { 
-            video: { url: filePath },
-            caption: `🎬 ${apiData.result.title || 'YouTube Video'}`,
+            video: Buffer.from(videoBuffer),
+            caption: `🎬 ${mp4dl.filename || 'YouTube Video'}`,
             mimetype: "video/mp4"
         }, { quoted: message });
 
-        // Cleanup
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-
-        await sock.sendMessage(chatId, { 
-            react: { text: '✅', key: message.key } 
-        });
-
-    } catch (error) {
-        console.error("YTMP4 command error:", error);
-        return await sock.sendMessage(chatId, { 
-            text: `🚫 Error: ${error.message}`
-        }, { quoted: message });
+    } catch (err) {
+        console.error("MP4 error:", err);
+        await sock.sendMessage(chatId, { text: '❌ Error downloading the video.' });
     }
 }
 
-async function ytmp3Command(sock, chatId, message) {
+// MP3 Command
+async function ytmp3Command(sock, chatId, senderId, message, userMessage) {
+    const url = userMessage.split(' ')[1];
+    if (!url) return sendUsage(sock, chatId, "mp3");
+
     try {
-        await sock.sendMessage(chatId, {
-            react: { text: '🕖', key: message.key }
-        });
+        await startDownload(sock, chatId, message, url, "mp3");
+        const apiUrl = `https://apis-sandarux.zone.id/api/ytmp3/ytdown?url=${encodeURIComponent(url)}`;
+        const { data } = await axios.get(apiUrl);
 
-        const text = message.message?.conversation || message.message?.extendedTextMessage?.text;
-        const parts = text.split(' ');
-        const url = parts.slice(1).join(' ').trim();
+        const dlLink = data?.result?.download_url 
+            || data?.result?.media?.find(m => m.Type === "audio" && m.format === "mp3")?.download_link;
 
-        if (!url) return await sock.sendMessage(chatId, { 
-            text: '🎵 *YouTube MP3 Download Command*\n\nUsage:\n.ytmp3 <youtube_url>\n\nExample:\n.ytmp3 https://youtu.be/xxxx\n.ytmp3 https://www.youtube.com/watch?v=xxxx'
-        }, { quoted: message });
+        if (!dlLink) throw new Error("No audio link");
 
         await sock.sendMessage(chatId, {
-            text: `⏬ Downloading MP3 audio from: ${url}...`
-        }, { quoted: message });
-
-        // Search YouTube if URL is a search query
-        let videoUrl = url;
-        if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
-            const searchResult = await (await yts(`${url}`)).videos[0];
-            if (!searchResult) return sock.sendMessage(chatId, { 
-                text: "😕 Couldn't find that video. Try another one!"
-            }, { quoted: message });
-            videoUrl = searchResult.url;
-        }
-
-        const apiUrl = `https://api.privatezia.biz.id/api/downloader/ytmp3?url=${encodeURIComponent(videoUrl)}`;
-        const response = await axios.get(apiUrl);
-        const apiData = response.data;
-
-        if (!apiData.status || !apiData.result || !apiData.result.downloadUrl) {
-            throw new Error("API failed to fetch audio!");
-        }
-
-        const tempDir = path.join(__dirname, "temp");
-        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
-
-        const timestamp = Date.now();
-        const fileName = `audio_${timestamp}.mp3`;
-        const filePath = path.join(tempDir, fileName);
-
-        // Download MP3
-        const audioResponse = await axios({ 
-            method: "get", 
-            url: apiData.result.downloadUrl, 
-            responseType: "stream", 
-            timeout: 600000 
-        });
-        const writer = fs.createWriteStream(filePath);
-        audioResponse.data.pipe(writer);
-        await new Promise((resolve, reject) => { 
-            writer.on("finish", resolve); 
-            writer.on("error", reject); 
-        });
-
-        if (!fs.existsSync(filePath) || fs.statSync(filePath).size === 0) {
-            throw new Error("Download failed or empty file!");
-        }
-
-        await sock.sendMessage(chatId, {
-            document: { url: filePath },
+            document: { url: dlLink },
             mimetype: "audio/mpeg",
-            fileName: `${(apiData.result.title || 'audio').substring(0, 100)}.mp3`
+            fileName: `${data.result.title || 'audio'}.mp3`,
+            contextInfo: {
+                externalAdReply: {
+                    thumbnailUrl: data.result.thumbnail,
+                    title: data.result.title || "YouTube Audio",
+                    body: "Downloaded via YouTube MP3",
+                    sourceUrl: url,
+                    renderLargerThumbnail: true,
+                    mediaType: 1,
+                    forwardingScore: 9999999,
+                    isForwarded: true,
+                }
+            }
         }, { quoted: message });
 
-        // Cleanup
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        await sock.sendMessage(chatId, { react: { text: '✅', key: message.key } });
 
-        await sock.sendMessage(chatId, { 
-            react: { text: '✅', key: message.key } 
-        });
-
-    } catch (error) {
-        console.error("YTMP3 command error:", error);
-        return await sock.sendMessage(chatId, { 
-            text: `🚫 Error: ${error.message}`
-        }, { quoted: message });
+    } catch (err) {
+        console.error("MP3 error:", err);
+        await sock.sendMessage(chatId, { text: '❌ Error downloading the audio.' });
     }
 }
 
-module.exports = {
-    ytmp4Command,
-    ytmp3Command
-};
+module.exports = { ytmp4Command, ytmp3Command };
