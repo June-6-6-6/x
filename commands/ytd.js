@@ -38,22 +38,22 @@ async function ytmp3Command(sock, chatId, senderId, message, userMessage) {
     await sock.sendMessage(chatId, { text: `⏬ Downloading MP3 from: ${url}...` }, { quoted: message });
 
     try {
-        const { data } = await axios.get(`https://apis-sandarux.zone.id/api/ytmp3/ytdown?url=${encodeURIComponent(url)}`);
-        const dlLink = data?.result?.download_url 
-            || data?.result?.media?.find(m => m.Type === "audio" && m.format === "mp3")?.download_link;
+        const { data } = await axios.get(`https://iamtkm.vercel.app/downloaders/ytmp3?apikey=tkm&url=${encodeURIComponent(url)}`);
+        const dlLink = data?.data?.url 
+            || data?.data?.media?.find(m => m.Type === "audio" && m.format === "mp3")?.download_link;
 
         if (!dlLink) throw new Error("No audio link");
 
         await sock.sendMessage(chatId, {
             document: { url: dlLink },
             mimetype: "audio/mpeg",
-            fileName: `${data.result.title || 'audio'}.mp3`,
+            fileName: `${data.data.title || 'audio'}.mp3`,
             contextInfo: {
                 externalAdReply: {
-                    thumbnailUrl: data.result.thumbnail,
-                    title: data.result.title || "YouTube Audio",
+                    thumbnailUrl: data.data.thumbnail,
+                    title: data.data.title || "YouTube Audio",
                     body: "Downloaded via YouTube MP3",
-                    sourceUrl: url,
+                    sourceUrl: null,
                     renderLargerThumbnail: true,
                     mediaType: 1
                 }
