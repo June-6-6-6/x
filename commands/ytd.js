@@ -83,7 +83,7 @@ async function ytmp3Command(sock, chatId, senderId, message, userMessage) {
                 });
             }
 
-            const dlLink = data.data.url;
+            const dlLink = data.data.url && data.data.format === 'mp3';
                 
             if (!dlLink) {
                 return await sock.sendMessage(chatId, {
