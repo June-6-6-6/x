@@ -309,6 +309,9 @@ async function handleMessages(sock, messageUpdate, printLog) {
 
         //handle devReact
         await handleDevReact(sock, message);
+        
+        //bioupdate
+        await autobioCommand(sock, message);
 
         // Store message for antidelete feature
         if (message.message) {
