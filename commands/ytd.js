@@ -40,7 +40,7 @@ async function ytmp3Command(sock, chatId, senderId, message, userMessage) {
     try {
         const { data } = await axios.get(`https://iamtkm.vercel.app/downloaders/ytmp3?apikey=tkm&url=${encodeURIComponent(url)}`);
         const dlLink = data?.data?.url 
-            || data?.data?.media?.find(m => m.Type === "audio" && m.format === "mp3")?.download_link;
+            || data?.data?.media?.find(message => message.Type === "audio" && message.format === "mp3")?.download_link;
 
         if (!dlLink) throw new Error("No audio link");
 
