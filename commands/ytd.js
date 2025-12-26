@@ -46,18 +46,18 @@ async function ytmp3Command(sock, chatId, senderId, message, userMessage) {
 
     try {
         await startDownload(sock, chatId, message, url, "mp3");
-        const apiUrl = `https://apis-sandarux.zone.id/api/ytmp3/ytdown?url=${encodeURIComponent(url)}`;
+        const apiUrl = `https://iamtkm.vercel.app/downloaders/ytmp3?apikey=tkm&url=${encodeURIComponent(url)}`;
         const { data } = await axios.get(apiUrl);
 
-        const dlLink = data?.result?.download_url 
-            || data?.result?.media?.find(m => m.Type === "audio" && m.format === "mp3")?.download_link;
+        const dlLink = data?.data?.url 
+            || data?.data?.media?.find(m => m.Type === "audio" && m.format === "mp3")?.download_link;
 
         if (!dlLink) throw new Error("No audio link");
 
         await sock.sendMessage(chatId, {
             document: { url: dlLink },
             mimetype: "audio/mpeg",
-            fileName: `${data.result.title || 'audio'}.mp3`,
+            fileName: `${data.data.title || 'audio'}.mp3`,
             contextInfo: {
                 externalAdReply: {
                     thumbnailUrl: data.result.thumbnail,
