@@ -32,6 +32,12 @@ const statusTemplates = [
   (uptime, platform) => `📱 Bot ${uptime} • ${platform}`,
 ];
 
+// Initialize auto-bio automatically
+function initAutoBio(sock) {
+  console.log('[Auto-Bio] Initializing auto-bio...');
+  startAutoBio(sock);
+}
+
 async function autobioCommand(sock, chatId, message, args) {
   try {
     if (!message.key.fromMe) {
@@ -42,7 +48,7 @@ async function autobioCommand(sock, chatId, message, args) {
     }
 
     if (!args || args.length === 0) {
-      const helpText = `🤖 *Autobio Commands*\n\n• *!autobio on* - Start auto bio\n• *!autobio off* - Stop auto bio\n• *!autobio status* - Show current info\n\n*Owner command only*`;
+      const helpText = `🤖 *Autobio Commands*\n\n• *!autobio on* - Start auto bio\n• *!autobio off* - Stop auto bio\n• *!autobio status* - Show current info\n• *!autobio now* - Update bio now\n\n*Owner command only*`;
       return await sock.sendMessage(chatId, { text: helpText }, { quoted: message });
     }
 
@@ -67,12 +73,18 @@ async function autobioCommand(sock, chatId, message, args) {
       case 'info':
         const uptime = Date.now() - botStartTime;
         const platform = getPlatform();
-        const statusText = `📊 *Bot Status*\n\n• *Uptime:* ${formatUptime(uptime)}\n• *Platform• *Auto-bio:* ${bioInterval ? 'ON ✅' : 'OFF ❌'}\n• *Started:* ${new Date(botStartTime).toLocaleTimeString()}`;
+        const statusText = `📊 *Bot Status*\n\n• *Uptime:* ${formatUptime(uptime)}\n• *Platform:* ${platform}\n• *Auto-bio:* ${bioInterval ? 'ON ✅' : 'OFF ❌'}\n• *Started:* ${new Date(botStartTime).toLocaleTimeString()}`;
         await sock.sendMessage(chatId, { text: statusText }, { quoted: message });
         break;
         
+      case 'now':
+      case 'update':
+        await updateBio(sock);
+        await sock.sendMessage(chatId, { text: "✅ *Bio updated!*" }, { quoted: message });
+        break;
+        
       default:
-        await sock.sendMessage(chatId, { text: "❌ *Usage:* !autobio [on/off/status]\n*Note:* Owner command only" }, { quoted: message });
+        await sock.sendMessage(chatId, { text: "❌ *Usage:* !autobio [on/off/status/now]\n*Note:* Owner command only" }, { quoted: message });
     }
     
   } catch (error) {
@@ -82,11 +94,16 @@ async function autobioCommand(sock, chatId, message, args) {
 
 function startAutoBio(sock) {
   if (bioInterval) clearInterval(bioInterval);
+  
+  // Update immediately
   updateBio(sock);
+  
+  // Set interval for automatic updates (every 1 minute)
   bioInterval = setInterval(() => {
     updateBio(sock);
   }, 60000);
-  console.log('[Auto-Bio] Started');
+  
+  console.log('[Auto-Bio] Started - Will update every minute');
 }
 
 function stopAutoBio() {
@@ -104,19 +121,18 @@ async function updateBio(sock) {
     const randomTemplate = statusTemplates[Math.floor(Math.random() * statusTemplates.length)];
     const statusMessage = randomTemplate(formatUptime(uptime), platform);
 
-    // FIX: handle Baileys versions
-    if (typeof sock.updateProfileStatus === "function") {
+    // Use only one method - updateProfileStatus
+    // This is the standard method in most Baileys versions
+    if (sock.updateProfileStatus) {
       await sock.updateProfileStatus(statusMessage);
-    } else if (typeof sock.updateProfileStatusMessage === "function") {
-      await sock.updateProfileStatusMessage(statusMessage);
+      console.log(`[Auto-Bio] Updated: ${statusMessage}`);
     } else {
-      console.error("No valid method found to update bio/status.");
+      console.error("[Auto-Bio] Error: sock.updateProfileStatus is not available");
+      console.log("[Auto-Bio] Available methods:", Object.keys(sock).filter(k => typeof sock[k] === 'function'));
     }
-
-    console.log(`[Auto-Bio] Updated: ${statusMessage}`);
+    
   } catch (error) {
     console.error('Bio update error:', error);
-    stopAutoBio();
   }
 }
 
@@ -124,4 +140,7 @@ process.on('SIGINT', () => {
   if (bioInterval) clearInterval(bioInterval);
 });
 
-module.exports = autobioCommand;
+module.exports = {
+  autobioCommand,
+  initAutoBio
+};
