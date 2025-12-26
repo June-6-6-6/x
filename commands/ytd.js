@@ -75,15 +75,15 @@ async function ytmp3Command(sock, chatId, senderId, message, userMessage) {
 
         try {
             const apiUrl = `https://iamtkm.vercel.app/downloaders/ytmp3?apikey=tkm&url=${encodeURIComponent(url)}`;
-            const { data } = await axios.get(apiUrl);
+            const data = await axios.get(apiUrl);
 
-            if (!data?.status) {
+            if (!data.status) {
                 return await sock.sendMessage(chatId, {
                     text: '❌ Failed to fetch audio from API.'
                 });
             }
 
-            const dlLink = data.data?.url;
+            const dlLink = data.data.url;
                 
             if (!dlLink) {
                 return await sock.sendMessage(chatId, {
