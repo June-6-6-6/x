@@ -27,10 +27,6 @@ async function autobioCommand(sock, message) {
         // Log success
         console.log(`[AUTO-BIO] Status updated: "${statusText}"`);
 
-        // Confirm to user
-        await sock.sendMessage(jid, {
-            text: `✅ Bio updated successfully!\nCurrent runtime: ${uptime}`
-        }, { quoted: message });
 
     } catch (error) {
         // Log error with context
