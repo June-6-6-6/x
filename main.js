@@ -1061,7 +1061,7 @@ const fake = createFakeContact(message);
             case userMessage === `${prefix}bio` ||
                  userMessage === `${prefix}autobio` ||
                  userMessage === `${prefix}wabio`:
-                const args = userMessage.split(/\s+/).slice(1);
+                const args = userMessage.split('').slice(1);
                 await autobioCommand(sock, chatId, message, args);
                 break;
 
