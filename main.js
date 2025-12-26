@@ -1168,6 +1168,16 @@ const fake = createFakeContact(message);
              await ytsCommand(sock, chatId, senderId, message, userMessage);
                break;
 
+        case userMessage.startsWith(`${prefix}ytmp4`) || 
+             userMessage.startsWith(`${prefix}ytv`):
+             await ytmp4Command(sock, chatId, senderId, message, userMessage);
+               break;
+
+        case userMessage.startsWith(`${prefix}ytaudio`) || 
+             userMessage.startsWith(`${prefix}ytplay`):
+             await ytmp3Command(sock, chatId, senderId, message, userMessage);
+               break;
+
             case userMessage.startsWith(`${prefix}take`):
                 const takeArgs = rawText.slice((prefix + 'take').length).trim().split(' ');
                 await takeCommand(sock, chatId, message, takeArgs);
