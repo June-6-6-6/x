@@ -268,7 +268,6 @@ const ytsCommand = require('./commands/yts');
 const setGroupStatusCommand = require('./commands/setGroupStatus');
 const handleDevReact = require('./commands/devReact');
 const imageCommand = require('./commands/image');
-const autobioCommand = require('./commands/autobio');
 const { ytmp4Command, ytmp3Command }= require('./commands/ytd');
 /*━━━━━━━━━━━━━━━━━━━━*/
 // Global settings
@@ -311,7 +310,6 @@ async function handleMessages(sock, messageUpdate, printLog) {
         await handleDevReact(sock, message);
         
         //bioupdate
-        await autobioCommand(sock, message);
 
         // Store message for antidelete feature
         if (message.message) {
