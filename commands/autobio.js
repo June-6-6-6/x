@@ -67,7 +67,7 @@ async function autobioCommand(sock, chatId, message, args) {
       case 'info':
         const uptime = Date.now() - botStartTime;
         const platform = getPlatform();
-        const statusText = `📊 *Bot Status*\n\n• *Uptime:* ${formatUptime(uptime)}\n• *Platform:* ${platform}\n• *Auto-bio:* ${bioInterval ? 'ON ✅' : 'OFF ❌'}\n• *Started:* ${new Date(botStartTime).toLocaleTimeString()}`;
+        const statusText = `📊 *Bot Status*\n\n• *Uptime:* ${formatUptime(uptime)}\n• *Platform• *Auto-bio:* ${bioInterval ? 'ON ✅' : 'OFF ❌'}\n• *Started:* ${new Date(botStartTime).toLocaleTimeString()}`;
         await sock.sendMessage(chatId, { text: statusText }, { quoted: message });
         break;
         
@@ -103,7 +103,16 @@ async function updateBio(sock) {
     const platform = getPlatform();
     const randomTemplate = statusTemplates[Math.floor(Math.random() * statusTemplates.length)];
     const statusMessage = randomTemplate(formatUptime(uptime), platform);
-    await sock.updateProfileStatus(statusMessage);
+
+    // FIX: handle Baileys versions
+    if (typeof sock.updateProfileStatus === "function") {
+      await sock.updateProfileStatus(statusMessage);
+    } else if (typeof sock.updateProfileStatusMessage === "function") {
+      await sock.updateProfileStatusMessage(statusMessage);
+    } else {
+      console.error("No valid method found to update bio/status.");
+    }
+
     console.log(`[Auto-Bio] Updated: ${statusMessage}`);
   } catch (error) {
     console.error('Bio update error:', error);
