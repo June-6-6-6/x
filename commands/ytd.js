@@ -1,4 +1,5 @@
 const axios = require('axios');
+const fetch = require('node-fetch');
 
 async function ytmp4Command(sock, chatId, senderId, message, userMessage) {
     const url = userMessage.split(' ')[1];
@@ -12,16 +13,22 @@ async function ytmp4Command(sock, chatId, senderId, message, userMessage) {
     await sock.sendMessage(chatId, { text: `⏬ Downloading MP4 from: ${url}...` }, { quoted: message });
 
     try {
-        const mp4dl = await ytmp4(url, { format: "mp4", videoQuality: "720" });
-        if (!mp4dl?.url) throw new Error("No video URL");
+        // Call the API for MP4
+        const { data } = await axios.get(`https://iamtkm.vercel.app/downloaders/ytmp4?apikey=tkm&url=${encodeURIComponent(url)}`);
+        const dlLink = data?.data?.url 
+            || data?.data?.media?.find(item => item.Type === "video" && item.format === "mp4")?.download_link;
 
-        const videoBuffer = await (await fetch(mp4dl.url)).arrayBuffer();
+        if (!dlLink) throw new Error("No video link");
+
+        const videoBuffer = await (await fetch(dlLink)).arrayBuffer();
         await sock.sendMessage(chatId, {
             video: Buffer.from(videoBuffer),
-            caption: `🎬 ${mp4dl.filename || 'YouTube Video'}`,
+            caption: `🎬 ${data.data.title || 'YouTube Video'}`,
             mimetype: "video/mp4"
         }, { quoted: message });
-    } catch {
+
+        await sock.sendMessage(chatId, { react: { text: '✅', key: message.key } });
+    } catch (err) {
         await sock.sendMessage(chatId, { text: '❌ Failed to download video.' });
     }
 }
@@ -40,7 +47,7 @@ async function ytmp3Command(sock, chatId, senderId, message, userMessage) {
     try {
         const { data } = await axios.get(`https://iamtkm.vercel.app/downloaders/ytmp3?apikey=tkm&url=${encodeURIComponent(url)}`);
         const dlLink = data?.data?.url 
-            || data?.data?.media?.find(message => message.Type === "audio" && message.format === "mp3")?.download_link;
+            || data?.data?.media?.find(item => item.Type === "audio" && item.format === "mp3")?.download_link;
 
         if (!dlLink) throw new Error("No audio link");
 
