@@ -1057,14 +1057,6 @@ const fake = createFakeContact(message);
                 await aliveCommand(sock, chatId, message);
                 break;
 
-
-            case userMessage === `${prefix}bio` ||
-                 userMessage === `${prefix}autobio` ||
-                 userMessage === `${prefix}wabio`:
-                const args = userMessage.split('').slice(1);
-                await autobioCommand(sock, chatId, message, args);
-                break;
-
             case userMessage.startsWith(`${prefix}mention`):
                 {
                     const args = userMessage.split(' ').slice(1).join(' ');
