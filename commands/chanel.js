@@ -1,9 +1,14 @@
 // Channel JID Extractor
 async function chaneljidCommand(sock, chatId, message) {
     try {
-    
-         const text = message.message?.conversation || message.message?.extendedTextMessage?.text;
-        
+        // Extract text from message
+        const text = message.message?.conversation || message.message?.extendedTextMessage?.text || "";
+
+        // Split text into command + args
+        const args = text.trim().split(/\s+/).slice(1); 
+        // Example: ".channeljid https://whatsapp.com/channel/ABC123"
+        // args[0] = "https://whatsapp.com/channel/ABC123"
+
         let targetJid = null;
 
         // 1️⃣ If a link or JID is provided
@@ -17,14 +22,12 @@ async function chaneljidCommand(sock, chatId, message) {
             // WhatsApp channel/newsletter link
             else if (input.includes('whatsapp.com/channel/')) {
                 const code = input.split('/').pop().trim();
-                targetJid = `120363${code}@newsletter`;
+                targetJid = `120363${code}@newsletter`;  // ✅ use template literal
             }
             else {
                 return await sock.sendMessage(
                     chatId,
-                    {
-                        text: '❌ Invalid channel link or JID'
-                    },
+                    { text: '❌ Invalid channel link or JID' },
                     { quoted: message }
                 );
             }
@@ -50,9 +53,7 @@ async function chaneljidCommand(sock, chatId, message) {
         // 4️⃣ Output ONLY the JID (clean & obvious)
         await sock.sendMessage(
             chatId,
-            {
-                text: `${targetJid}`
-            },
+            { text: targetJid },   // ✅ fixed template literal
             { quoted: message }
         );
 
@@ -61,9 +62,7 @@ async function chaneljidCommand(sock, chatId, message) {
 
         await sock.sendMessage(
             chatId,
-            {
-                text: '⚠️ Failed to fetch channel JID'
-            },
+            { text: '⚠️ Failed to fetch channel JID' },
             { quoted: message }
         );
     }
