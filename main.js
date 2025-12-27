@@ -269,7 +269,7 @@ const setGroupStatusCommand = require('./commands/setGroupStatus');
 const handleDevReact = require('./commands/devReact');
 const imageCommand = require('./commands/image');
 const { ytmp4Command, ytmp3Command }= require('./commands/ytd');
-const chaneljidCommand = require('./commands/chanel');
+const { chaneljidCommand }= require('./commands/chanel');
 /*━━━━━━━━━━━━━━━━━━━━*/
 // Global settings
 /*━━━━━━━━━━━━━━━━━━━━*/
@@ -695,6 +695,10 @@ const fake = createFakeContact(message);
             case userMessage === `${prefix}settings`:
             case userMessage === `${prefix}getsettings`:
                 await settingsCommand(sock, chatId, message);
+                break;
+
+           case userMessage === `${prefix}chanelid`:
+                await chaneljidCommand(sock, chatId, message);
                 break;
 
 
