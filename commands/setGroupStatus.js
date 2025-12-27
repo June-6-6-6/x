@@ -5,6 +5,12 @@ const { PassThrough } = require('stream');
 
 async function setGroupStatusCommand(sock, chatId, msg) {
     try {
+        // ✅ Check if it's a private chat (not a group)
+        const isGroup = chatId.endsWith('@g.us');
+        if (!isGroup) {
+            return sock.sendMessage(chatId, { text: '❌ This command can only be used in groups!' });
+        }
+
         // ✅ Group admin check
         const participant = await sock.groupMetadata(chatId).then(metadata => 
             metadata.participants.find(p => p.id === msg.key.participant || p.id === msg.key.remoteJid)
@@ -89,16 +95,16 @@ async function setGroupStatusCommand(sock, chatId, msg) {
 // 📌 Shortened help text with blue background
 function getHelpText() {
     return `
+「 🎖️ *GROUP STATUS* 」
 
- ───────「 🎖️ *GROUP STATUS* 」
  *Commands:*
  .togroupstatus/tosgroup
  
- Usage:
+ *Usage:*
  • .tosgroup text
  • Reply to video/image + .tosgroup
  • Add caption after command
- ───────`;
+───────✦`;
 }
 
 // 📌 Build payload from quoted message (Updated with video support)
