@@ -5,9 +5,16 @@ const { PassThrough } = require('stream');
 
 async function setGroupStatusCommand(sock, chatId, msg) {
     try {
-        // ✅ Owner check
-        if (!msg.key.fromMe) {
-            return sock.sendMessage(chatId, { text: '❌ Only the owner can use this command!' });
+        // ✅ Group admin check
+        const participant = await sock.groupMetadata(chatId).then(metadata => 
+            metadata.participants.find(p => p.id === msg.key.participant || p.id === msg.key.remoteJid)
+        );
+        
+        // Check if user is admin or owner
+        const isAdmin = participant && (participant.admin === 'admin' || participant.admin === 'superadmin');
+        
+        if (!isAdmin && !msg.key.fromMe) {
+            return sock.sendMessage(chatId, { text: '❌ Only group admins can use this command!' });
         }
 
         const messageText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
@@ -79,21 +86,19 @@ async function setGroupStatusCommand(sock, chatId, msg) {
 
 /* ------------------ Helpers ------------------ */
 
-// 📌 Updated help text
+// 📌 Shortened help text with blue background
 function getHelpText() {
-    return `📌 *Group Status Command*\n\n` +
-           `*Commands:*\n` +
-           `• \`!togstatus\` or \`.tosgroup\` - Send group status\n\n` +
-           `*Usage:*\n` +
-           `• \`.tosgroup Hello family\` - Send text status\n` +
-           `• Reply to a video with \`.tosgroup\` - Send video status\n` +
-           `• Reply to a video with \`.tosgroup My caption\` - Send video with caption\n` +
-           `• Reply to an image with \`.tosgroup\` - Send image status\n` +
-           `• Reply to an image with \`.tosgroup My caption\` - Send image with caption\n` +
-           `• Reply to audio with \`.tosgroup\` - Send audio status\n` +
-           `• Reply to sticker with \`.tosgroup\` - Send sticker status\n` +
-           `• Reply to text with \`.tosgroup\` - Send quoted text as status\n\n` +
-           `*Note:* Captions are supported for videos and images.`;
+    return `
+
+ ───────「 🎖️ *GROUP STATUS* 」
+ *Commands:*
+ .togroupstatus/tosgroup
+ 
+ Usage:
+ • .tosgroup text
+ • Reply to video/image + .tosgroup
+ • Add caption after command
+ ───────`;
 }
 
 // 📌 Build payload from quoted message (Updated with video support)
