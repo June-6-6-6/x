@@ -8,7 +8,7 @@ async function setGroupStatusCommand(sock, chatId, msg) {
         // ✅ Check if it's a private chat (not a group)
         const isGroup = chatId.endsWith('@g.us');
         if (!isGroup) {
-            return sock.sendMessage(chatId, { text: '❌ This command can only be used in groups!' });
+            return sock.sendMessage(chatId, { text: '❌ This command can only be used in groups!' },{ quoted: msg });
         }
 
         // ✅ Group admin check
@@ -20,7 +20,7 @@ async function setGroupStatusCommand(sock, chatId, msg) {
         const isAdmin = participant && (participant.admin === 'admin' || participant.admin === 'superadmin');
         
         if (!isAdmin && !msg.key.fromMe) {
-            return sock.sendMessage(chatId, { text: '❌ Only group admins can use this command!' });
+            return sock.sendMessage(chatId, { text: '❌ Only group admins can use this command!' },{ quoted: msg });
         }
 
         const messageText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
@@ -64,12 +64,12 @@ async function setGroupStatusCommand(sock, chatId, msg) {
             if (textAfterCommand) {
                 payload = { text: textAfterCommand };
             } else {
-                return sock.sendMessage(chatId, { text: getHelpText() });
+                return sock.sendMessage(chatId, { text: getHelpText() },{ quoted: msg });
             }
         }
 
         if (!payload) {
-            return sock.sendMessage(chatId, { text: getHelpText() });
+            return sock.sendMessage(chatId, { text: getHelpText() },{ quoted: msg });
         }
 
         // ✅ Send group status
@@ -82,7 +82,7 @@ async function setGroupStatusCommand(sock, chatId, msg) {
             successMsg += `\nCaption: "${payload.caption}"`;
         }
         
-        await sock.sendMessage(chatId, { text: successMsg });
+        await sock.sendMessage(chatId, { text: successMsg },{ quoted: msg });
 
     } catch (error) {
         console.error('Error in group status command:', error);
@@ -95,7 +95,7 @@ async function setGroupStatusCommand(sock, chatId, msg) {
 // 📌 Shortened help text with blue background
 function getHelpText() {
     return `
-「 🎖️ *GROUP STATUS* 」
+「 🎖️ *GROUP STATUS* 」─✦
 
  *Commands:*
  .togroupstatus/tosgroup
@@ -104,7 +104,7 @@ function getHelpText() {
  • .tosgroup text
  • Reply to video/image + .tosgroup
  • Add caption after command
-───────✦`;
+─────────✦`;
 }
 
 // 📌 Build payload from quoted message (Updated with video support)
