@@ -5,7 +5,7 @@ async function chaneljidCommand(sock, chatId, message) {
         const text = message.message?.conversation || message.message?.extendedTextMessage?.text || "";
 
         // Split text into command + args
-        const args = text.trim().split(/\s+/).slice(1); 
+        const args = text.trim().split('').slice(1); 
         // Example: ".channeljid https://whatsapp.com/channel/ABC123"
         // args[0] = "https://whatsapp.com/channel/ABC123"
 
@@ -32,10 +32,7 @@ async function chaneljidCommand(sock, chatId, message) {
                 );
             }
         }
-        // 2️⃣ If no argument, use current chat JID
-        else {
-            targetJid = message.key.remoteJid;
-        }
+        
 
         // 3️⃣ Final validation
         if (!targetJid.endsWith('@newsletter')) {
@@ -53,7 +50,7 @@ async function chaneljidCommand(sock, chatId, message) {
         // 4️⃣ Output ONLY the JID (clean & obvious)
         await sock.sendMessage(
             chatId,
-            { text: targetJid },   // ✅ fixed template literal
+            { text: `${targetJid}` },   // ✅ fixed template literal
             { quoted: message }
         );
 
