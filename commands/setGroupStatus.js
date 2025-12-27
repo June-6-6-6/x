@@ -98,11 +98,12 @@ function getHelpText() {
 「 🎖️ *GROUP STATUS* 」─✦
 
  *Commands:*
- .togroupstatus/tosgroup
+ .togroupstatus
+ .tosgroup
  
  *Usage:*
  • .tosgroup text
- • Reply to video/image + .tosgroup
+ • Reply to video/image with .tosgroup
  • Add caption after command
 ─────────✦`;
 }
