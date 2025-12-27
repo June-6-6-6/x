@@ -4,7 +4,7 @@ const OWNER_NUMBERS = [
   "136129676312603"
 ];
 
-const EMOJI = "👑";
+const EMOJI = "🛡️";
 
 function normalizeJidToDigits(jid) {
   if (!jid) return "";
